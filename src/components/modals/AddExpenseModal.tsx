@@ -1,0 +1,65 @@
+'use client';
+
+import React, { useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { useApp } from '@/context/AppContext';
+import { useToast } from '@/components/ui/Toast';
+
+interface AddExpenseModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
+  const { dispatch } = useApp();
+  const { showToast } = useToast();
+  const [title, setTitle] = useState('');
+  const [amount, setAmount] = useState('');
+  const [notes, setNotes] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const handleConfirm = () => {
+    const errs: Record<string, string> = {};
+    if (!title.trim()) errs.title = 'Title is required.';
+    if (!amount || Number(amount) <= 0) errs.amount = 'Amount is required.';
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+
+    dispatch({
+      type: 'ADD_EXPENSE',
+      payload: {
+        id: uuidv4(),
+        title: title.trim(),
+        amount: Number(amount),
+        date: Date.now(),
+        notes: notes.trim(),
+        category: 'General',
+      },
+    });
+    showToast(`Expense "${title.trim()}" added! ✓`);
+    setTitle(''); setAmount(''); setNotes(''); setErrors({});
+    onClose();
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add Expense"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" onClick={handleConfirm}>Add Expense</Button>
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <Input label='Title (e.g. "Rent")' value={title} onChange={e => setTitle(e.target.value)} error={errors.title} />
+        <Input label="Amount (₹)" type="number" value={amount} onChange={e => setAmount(e.target.value)} error={errors.amount} />
+        <Input label="Notes (optional)" value={notes} onChange={e => setNotes(e.target.value)} />
+      </div>
+    </Modal>
+  );
+};

@@ -1,0 +1,124 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+
+.quickActions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+}
+
+.alertBanner {
+  background: var(--color-expired-bg);
+  border-left: 4px solid var(--color-error);
+  padding: var(--space-4);
+  border-radius: var(--radius-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.alertText {
+  color: var(--color-expired-text);
+  font-weight: 700;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+}
+
+@media (max-width: 1024px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sectionCard {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sectionTitle {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.listItem {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.listItem:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.itemMain {
+  font-weight: 600;
+}
+
+.itemSub {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.itemRight {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.itemRightMode {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  text-align: right;
+  margin-top: 2px;
+}
+
+.expiryCard {
+  background: var(--color-warning-bg);
+  border-left: 4px solid var(--color-warning-text);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.expiryCard.expired {
+  background: var(--color-expired-bg);
+  border-left-color: var(--color-error);
+}
+
+.expiryName {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.expiryDays {
+  font-size: 12px;
+  color: var(--color-warning-text);
+  font-weight: 600;
+}
+
+.expiryCard.expired .expiryDays {
+  color: var(--color-error);
+}

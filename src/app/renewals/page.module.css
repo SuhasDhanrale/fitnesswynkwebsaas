@@ -1,0 +1,113 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.headerStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  max-width: 400px;
+}
+
+.statBox {
+  padding: var(--space-5);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.statBox.red {
+  background: var(--color-expired-bg);
+}
+
+.statBox.orange {
+  background: var(--color-warning-bg);
+}
+
+.statValue {
+  font-family: var(--font-heading);
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.statBox.red .statValue { color: var(--color-error); }
+.statBox.orange .statValue { color: var(--color-warning-text); }
+
+.statLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+}
+
+.statBox.red .statLabel { color: var(--color-expired-text); }
+.statBox.orange .statLabel { color: var(--color-warning-text); }
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.memberCard {
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  border-left: 4px solid;
+}
+
+.memberCard.expired {
+  background: var(--color-expired-bg);
+  border-left-color: var(--color-error);
+}
+
+.memberCard.warning {
+  background: var(--color-warning-bg);
+  border-left-color: var(--color-warning-text);
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.memberName {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.expiryStatus {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.memberCard.expired .expiryStatus { color: var(--color-error); }
+.memberCard.warning .expiryStatus { color: var(--color-warning-text); }
+
+.memberSub {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+.cardActions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.emptyState {
+  text-align: center;
+  padding: var(--space-10) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
