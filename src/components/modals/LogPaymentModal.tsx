@@ -51,7 +51,7 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
       setStartDate(today);
       setTimeout(() => searchInputRef.current?.focus(), 100);
     }
-  }, [isOpen]);
+  }, [isOpen, state.settings.availablePlans, state.settings.batches, state.settings.durations, today]);
 
   useEffect(() => {
     const ms = calcEndDate(new Date(startDate).getTime(), duration);
@@ -223,7 +223,7 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
               <Input label="End Date (Auto)" value={endDate} readOnly disabled />
             </div>
             <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '8px' }}>
-              Dates are automatically chained so the user doesn't lose any existing valid days.
+              Dates are automatically chained so the user doesn&apos;t lose any existing valid days.
             </p>
           </div>
         )}

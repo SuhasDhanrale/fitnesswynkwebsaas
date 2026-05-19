@@ -15,7 +15,7 @@ const templates: Record<Audience, string> = {
 };
 
 export default function Marketing() {
-  const { state } = useApp();
+  const {} = useApp();
   const { showToast } = useToast();
   const [audience, setAudience] = useState<Audience>('All Active Members');
   const [message, setMessage] = useState(templates['All Active Members']);

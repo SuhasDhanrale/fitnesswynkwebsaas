@@ -69,7 +69,7 @@ export const Modal: React.FC<ModalProps> = ({
       document.body.style.overflow = 'auto';
       window.removeEventListener('keydown', handleKey);
     };
-  }, [isOpen, isDirty, onClose]);
+  }, [isOpen, isDirty, dirtyMessage, onClose]);
 
   if (!isOpen) return null;
 

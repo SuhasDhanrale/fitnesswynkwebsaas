@@ -5,7 +5,6 @@ import { format, isSameMonth, subMonths } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Button } from '@/components/ui/Button';
-import { FilterChip } from '@/components/ui/FilterChip';
 import { LogPaymentModal } from '@/components/modals/LogPaymentModal';
 import { PaymentDetailModal } from '@/components/modals/PaymentDetailModal';
 import { AddExpenseModal } from '@/components/modals/AddExpenseModal';

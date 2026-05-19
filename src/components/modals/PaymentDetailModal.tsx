@@ -26,12 +26,15 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, 
           payment.planName && { label: 'Plan', value: payment.planName },
           payment.batch && { label: 'Batch', value: payment.batch },
           payment.notes && { label: 'Notes', value: payment.notes },
-        ].filter(Boolean).map((row: any) => (
+        ].filter(Boolean).map((row: { label: string; value: string } | false | "" | undefined) => {
+          if (!row) return null;
+          return (
           <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--color-border)' }}>
             <span style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>{row.label}</span>
             <span style={{ fontWeight: 600 }}>{row.value}</span>
           </div>
-        ))}
+          );
+        })}
       </div>
     </Modal>
   );
