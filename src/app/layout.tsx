@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${outfit.variable}`}>
+      <body suppressHydrationWarning className={`${inter.variable} ${outfit.variable}`}>
         <AppProvider>
           <ToastProvider>
             <AppShell>{children}</AppShell>

@@ -10,16 +10,34 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   footer?: ReactNode;
+  /** When true, overlay click & Escape are blocked. Show a confirm before closing. */
+  isDirty?: boolean;
+  /** Custom message for dirty-close confirm dialog */
+  dirtyMessage?: string;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer }) => {
+export const Modal: React.FC<ModalProps> = ({
+  isOpen, onClose, title, children, footer,
+  isDirty = false,
+  dirtyMessage = 'You have unsaved changes. Discard and close?',
+}) => {
   const modalRef = useRef<HTMLDivElement>(null);
+
+  const requestClose = () => {
+    if (isDirty) {
+      if (!window.confirm(dirtyMessage)) return; // user hit Cancel → stay open
+    }
+    onClose();
+  };
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        requestClose();
+      }
 
-      // Focus trap logic
+      // Focus trap
       if (e.key === 'Tab' && modalRef.current) {
         const focusableElements = modalRef.current.querySelectorAll(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -44,13 +62,6 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     if (isOpen) {
       document.body.style.overflow = 'hidden';
       window.addEventListener('keydown', handleKey);
-      // Auto-focus modal on open
-      setTimeout(() => {
-        if (modalRef.current) {
-          const firstFocusable = modalRef.current.querySelector('button, input, select, textarea') as HTMLElement;
-          if (firstFocusable) firstFocusable.focus();
-        }
-      }, 50);
     } else {
       document.body.style.overflow = 'auto';
     }
@@ -58,14 +69,17 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
       document.body.style.overflow = 'auto';
       window.removeEventListener('keydown', handleKey);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, isDirty, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div 
-        className={styles.modal} 
+    <div
+      className={styles.overlay}
+      onClick={requestClose}
+    >
+      <div
+        className={styles.modal}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -75,7 +89,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
       >
         <div className={styles.header}>
           <h2 id="modal-title" className={`text-h2 ${styles.title}`}>{title}</h2>
-          <button className={styles.closeButton} onClick={onClose} aria-label="Close">
+          <button className={styles.closeButton} onClick={requestClose} aria-label="Close">
             <X size={24} />
           </button>
         </div>
@@ -85,3 +99,4 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     </div>
   );
 };
+
