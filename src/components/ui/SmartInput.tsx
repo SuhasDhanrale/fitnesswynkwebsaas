@@ -183,7 +183,7 @@ export const SmartInput: React.FC<SmartInputProps> = ({ onParsed, placeholder, t
         <Button variant="ghost" onClick={() => setText('')} style={{ fontSize: '12px', padding: '4px 12px' }}>
           Clear
         </Button>
-        <Button variant="outline" onClick={() => parseText(text)} style={{ fontSize: '12px', padding: '4px 12px', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}>
+        <Button variant="ghost" onClick={() => parseText(text)} style={{ fontSize: '12px', padding: '4px 12px', border: '1px solid var(--color-primary)', color: 'var(--color-primary)' }}>
           <Wand2 size={14} style={{ marginRight: '4px' }}/> Auto-Fill Form
         </Button>
       </div>
