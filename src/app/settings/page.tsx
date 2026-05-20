@@ -60,10 +60,12 @@ export default function Settings() {
 
         <div className={styles.qrSection}>
           <p className="text-label" style={{ color: 'var(--color-text-secondary)' }}>Payment QR Code</p>
-          {qrPreview
-            ? <img src={qrPreview} alt="QR Code" className={styles.qrPreview} />
-            : <div className={styles.qrPlaceholder}>No QR uploaded</div>
-          }
+          {qrPreview ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={qrPreview} alt="QR Code" className={styles.qrPreview} />
+          ) : (
+            <div className={styles.qrPlaceholder}>No QR uploaded</div>
+          )}
           <input type="file" accept="image/*" ref={fileInputRef} onChange={handleQrChange} style={{ display: 'none' }} />
           <Button variant="ghost" onClick={() => fileInputRef.current?.click()}>
             {qrPreview ? 'Change QR Image' : 'Upload QR Screenshot'}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { ReactNode, useEffect, useRef } from 'react';
+import React, { ReactNode, useEffect, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
 import styles from './Modal.module.css';
 
@@ -23,12 +23,12 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
-  const requestClose = () => {
+  const requestClose = useCallback(() => {
     if (isDirty) {
       if (!window.confirm(dirtyMessage)) return; // user hit Cancel → stay open
     }
     onClose();
-  };
+  }, [isDirty, dirtyMessage, onClose]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -69,7 +69,7 @@ export const Modal: React.FC<ModalProps> = ({
       document.body.style.overflow = 'auto';
       window.removeEventListener('keydown', handleKey);
     };
-  }, [isOpen, isDirty, dirtyMessage, onClose]);
+  }, [isOpen, requestClose]);
 
   if (!isOpen) return null;
 

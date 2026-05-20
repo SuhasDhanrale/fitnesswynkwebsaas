@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { Stepper } from '@/components/ui/Stepper';
+import { SmartInput } from '@/components/ui/SmartInput';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { processPaymentAndRenewal } from '@/lib/actions';
@@ -158,6 +159,18 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
         {/* STEP 1: Fast Checkout */}
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'pageFadeIn 200ms ease' }}>
+            <SmartInput 
+              type="payment" 
+              onParsed={(data) => {
+                if (data.name) {
+                  setMemberSearch(data.name);
+                  setShowDropdown(true);
+                }
+                if (data.amount) setAmount(data.amount);
+                if (data.paymentMode) setPayMode(data.paymentMode as 'Cash' | 'UPI');
+              }}
+            />
+            
             <div style={{ position: 'relative' }}>
               <Input
                 ref={searchInputRef}

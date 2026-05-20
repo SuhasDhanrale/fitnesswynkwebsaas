@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { Stepper } from '@/components/ui/Stepper';
+import { SmartInput } from '@/components/ui/SmartInput';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { addMember } from '@/lib/actions';
@@ -149,16 +150,33 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
 
         {/* STEP 1: Identity */}
         {step === 1 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', animation: 'pageFadeIn 200ms ease' }}>
-            <Input ref={nameInputRef} label="Full Name" value={name} onChange={e => setName(e.target.value)} error={errors.name} />
-            <Input label="Phone Number" type="tel" maxLength={10} value={phone} onChange={e => setPhone(e.target.value)} error={errors.phone} />
-            <textarea
-              rows={2}
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Internal Notes (Optional)"
-              style={{ width: '100%', padding: '12px', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-body)', fontSize: '14px', resize: 'vertical' }}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'pageFadeIn 200ms ease' }}>
+            <SmartInput 
+              type="member" 
+              onParsed={(data) => {
+                if (data.name) setName(data.name);
+                if (data.phone) setPhone(data.phone);
+                if (data.amount) {
+                   setPayingNow(data.amount);
+                   setTotalFee(data.amount);
+                   setPayStatus('Fully Paid');
+                }
+                if (data.duration && state.settings.durations.includes(data.duration)) {
+                   setDuration(data.duration);
+                }
+              }} 
             />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Input ref={nameInputRef} label="Full Name" value={name} onChange={e => setName(e.target.value)} error={errors.name} />
+              <Input label="Phone Number" type="tel" maxLength={10} value={phone} onChange={e => setPhone(e.target.value)} error={errors.phone} />
+              <textarea
+                rows={2}
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="Internal Notes (Optional)"
+                style={{ width: '100%', padding: '12px', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-body)', fontSize: '14px', resize: 'vertical' }}
+              />
+            </div>
           </div>
         )}
 
