@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Wand2, CheckCircle2 } from 'lucide-react';
 import { Button } from './Button';
 import { useToast } from './Toast';
+import { parseSmartText } from '../../lib/parser';
 
 interface SmartInputProps {
   onParsed: (data: Record<string, string>) => void;
@@ -61,55 +62,16 @@ export const SmartInput: React.FC<SmartInputProps> = ({ onParsed, placeholder, t
   };
 
   const parseText = (input: string) => {
-    if (!input.trim()) return;
-    
-    const data: Record<string, string> = {};
-    const lower = input.toLowerCase();
-    
-    // Extract Phone (10 digits)
-    const phoneMatch = input.match(/\b\d{10}\b/);
-    if (phoneMatch) data.phone = phoneMatch[0];
-    
-    // Extract Amount (e.g. 500, Rs 500, 1500)
-    const amounts = input.match(/\b\d{3,5}\b/g);
-    if (amounts) {
-       // Filter out duration/phone numbers, get the first likely amount
-       const possibleAmounts = amounts.map(Number).filter(n => n >= 100 && n < 100000);
-       if (possibleAmounts.length > 0) {
-         data.amount = possibleAmounts[0].toString();
-       }
-    }
-
-    // Extract Duration
-    if (lower.includes("1 month") || lower.includes("one month")) data.duration = "1 Month";
-    else if (lower.includes("3 month") || lower.includes("three month") || lower.includes("quarterly")) data.duration = "3 Months";
-    else if (lower.includes("6 month") || lower.includes("six month") || lower.includes("half")) data.duration = "6 Months";
-    else if (lower.includes("12 month") || lower.includes("year") || lower.includes("annual")) data.duration = "1 Year";
-
-    // Basic Name Extraction Heuristic (If adding a member)
-    if (type === 'member') {
-       // Find words that are Capitalized, not at the beginning of sentence, or fallback to first non-keyword
-       const words = input.split(' ').map(w => w.replace(/[^a-zA-Z]/g, ''));
-       const ignoreList = ['add', 'member', 'paid', 'rs', 'rupees', 'for', 'months', 'month', 'name', 'is'];
-       const potentialNames = words.filter(w => w.length > 2 && !ignoreList.includes(w.toLowerCase()));
-       if (potentialNames.length > 0) {
-         // Join first two if they exist to form full name
-         data.name = potentialNames.slice(0, 2).join(' ');
-       }
-    }
-    
-    // Payment Mode
-    if (lower.includes("upi") || lower.includes("phonepe") || lower.includes("gpay") || lower.includes("paytm")) data.paymentMode = "UPI";
-    else if (lower.includes("cash")) data.paymentMode = "Cash";
-
+    const data = parseSmartText(input, type === 'member');
     const fieldsFound = Object.keys(data).length;
+    
     if (fieldsFound > 0) {
-       setFeedback(`Magic Extracted: ${Object.keys(data).join(', ')}`);
-       setTimeout(() => setFeedback(''), 3000);
-       onParsed(data);
-       showToast(`Auto-filled ${fieldsFound} field(s) from text! ✨`);
+      setFeedback(`Magic Extracted: ${Object.keys(data).join(', ')}`);
+      setTimeout(() => setFeedback(''), 3000);
+      onParsed(data as Record<string, string>);
+      showToast(`Auto-filled ${fieldsFound} field(s) from text! ✨`);
     } else {
-       showToast(`Couldn't find recognizable details. Try standard formats!`);
+      showToast(`Couldn't find recognizable details. Try standard formats!`);
     }
   };
 
