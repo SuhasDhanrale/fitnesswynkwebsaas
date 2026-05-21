@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { format, isPast, isToday, addDays } from 'date-fns';
-import { Plus, Calendar, MoreVertical, Clock } from 'lucide-react';
+import { Plus, MoreVertical, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { mockTasks } from '@/data/mockData';
 import { Task } from '@/types';
