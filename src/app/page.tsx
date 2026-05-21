@@ -25,7 +25,7 @@ export default function Dashboard() {
   const { data: paymentsData, isLoading: paymentsLoading } = usePayments(0, 5);
 
   const recentPayments = paymentsData?.data ?? [];
-  const isLoading = statsLoading && paymentsLoading;
+  const isLoading = statsLoading || paymentsLoading;
 
   if (isLoading) {
     return (

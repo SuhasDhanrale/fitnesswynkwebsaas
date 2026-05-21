@@ -75,3 +75,15 @@ export interface GymSettings {
   durations: string[];       // ["1 Month", "3 Months", "1 Year"]
   enableSmartEntry: boolean;
 }
+
+// Task (for Jira-style tracking)
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  assignee: string;          // Name of the staff/trainer
+  status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  dueDate: number | null;    // epoch ms or null
+  timestamp: number;         // Created at epoch ms
+}

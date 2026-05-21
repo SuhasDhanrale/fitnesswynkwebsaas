@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Member, Payment, Attendance, Expense, Enquiry, Announcement, GymSettings } from '../types';
+import { Member, Payment, Attendance, Expense, Enquiry, Announcement, GymSettings, Task } from '../types';
 
 const now = Date.now();
 const d = (days: number) => days * 86400000;
@@ -88,4 +88,12 @@ export const mockEnquiries: Enquiry[] = [
 
 export const mockAnnouncements: Announcement[] = [
   { id: uuidv4(), title: 'Gym Closed Tomorrow', message: 'Dear Members, the gym will remain closed tomorrow due to scheduled maintenance. Sorry for the inconvenience.', targetGroup: 'All' },
+];
+
+export const mockTasks: Task[] = [
+  { id: uuidv4(), title: 'Call 5 new leads', description: 'Follow up with leads from Facebook ads campaign', assignee: 'Admin', status: 'TODO', priority: 'HIGH', dueDate: now + d(1), timestamp: now - d(1) },
+  { id: uuidv4(), title: 'Fix broken treadmill', description: 'Treadmill #3 needs a new belt installed', assignee: 'Maintenance', status: 'IN_PROGRESS', priority: 'HIGH', dueDate: now + d(2), timestamp: now - d(3) },
+  { id: uuidv4(), title: 'Order cleaning supplies', description: 'Restock sanitizers and paper towels', assignee: 'Admin', status: 'DONE', priority: 'MEDIUM', dueDate: now - d(1), timestamp: now - d(5) },
+  { id: uuidv4(), title: 'Prepare monthly finance report', description: 'Compile income and expenses for May', assignee: 'Admin', status: 'TODO', priority: 'MEDIUM', dueDate: now + d(5), timestamp: now },
+  { id: uuidv4(), title: 'Follow up with expired members', description: 'Call Priya and Rohit for renewal discounts', assignee: 'Trainer A', status: 'TODO', priority: 'HIGH', dueDate: now + d(3), timestamp: now },
 ];

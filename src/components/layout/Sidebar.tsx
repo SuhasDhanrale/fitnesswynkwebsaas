@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, CheckSquare, AlertTriangle,
-  Wallet, PhoneCall, Megaphone, Settings, LineChart,
+  Wallet, PhoneCall, Megaphone, Settings, LineChart, ClipboardList
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 const navItems = [
   { label: 'Dashboard',  icon: LayoutDashboard, route: '/' },
-  { label: 'Insights',   icon: LineChart,        route: '/insights' },
+  { label: 'Tasks',      icon: ClipboardList,   route: '/tasks' },
+  { label: 'Insights',   icon: LineChart,       route: '/insights' },
   { label: 'Members',    icon: Users,            route: '/members' },
   { label: 'Attendance', icon: CheckSquare,      route: '/attendance' },
   { label: 'Renewals',   icon: AlertTriangle,    route: '/renewals' },

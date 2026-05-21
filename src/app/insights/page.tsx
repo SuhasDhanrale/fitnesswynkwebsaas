@@ -77,7 +77,7 @@ export default function InsightsDashboard() {
     }));
   }, [attendanceTrend]);
 
-  const isLoading = financeLoading && retentionLoading;
+  const isLoading = financeLoading || retentionLoading || attendanceLoading || plansLoading;
 
   if (isLoading) {
     return (
