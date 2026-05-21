@@ -30,7 +30,23 @@ export default function MembersDirectory() {
     plan: planFilter,
   });
 
-  const members = data?.data ?? [];
+  const members = React.useMemo(() => {
+    const list = data?.data ?? [];
+    return [...list].sort((a, b) => {
+      const aDays = daysRemaining(a);
+      const bDays = daysRemaining(b);
+      
+      const aNeedsAttention = a.dueAmount > 0 || isExpired(a) || aDays <= 7;
+      const bNeedsAttention = b.dueAmount > 0 || isExpired(b) || bDays <= 7;
+
+      if (aNeedsAttention && !bNeedsAttention) return -1;
+      if (bNeedsAttention && !aNeedsAttention) return 1;
+
+      if (aDays !== bDays) return aDays - bDays;
+      
+      return a.name.localeCompare(b.name);
+    });
+  }, [data]);
 
   // Plan stats from members hook (all plans, no filter)
   const { data: allData } = useMembers({});

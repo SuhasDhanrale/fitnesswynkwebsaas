@@ -17,7 +17,7 @@ export const mockSettings: GymSettings = {
   availablePlans: ['Monthly Cardio', 'Weight Training', 'CrossFit', 'Yearly Pro'],
   batches: ['6-7 AM', '7-8 AM', '8-9 AM', '5-6 PM', '6-7 PM', '7-8 PM'],
   durations: ['1 Month', '3 Months', '6 Months', '1 Year', '45 Days'],
-  enableSmartEntry: true,
+  enableSmartEntry: false,
 };
 
 export const mockMembers: Member[] = [
