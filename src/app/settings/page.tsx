@@ -20,11 +20,26 @@ export default function Settings() {
   const [newPlan, setNewPlan] = useState('');
   const [newBatch, setNewBatch] = useState('');
   const [newDuration, setNewDuration] = useState('');
+  const [enableSmartEntry, setEnableSmartEntry] = useState(state.settings.enableSmartEntry);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const saveProfile = () => {
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { gymName: gymName.trim(), upiId: upiId.trim(), qrCodeUrl: qrPreview } });
-    showToast('Gym profile saved! ✓');
+  const saveProfile = async () => {
+    dispatch({ type: 'UPDATE_SETTINGS', payload: { gymName: gymName.trim(), upiId: upiId.trim(), qrCodeUrl: qrPreview, enableSmartEntry } });
+    
+    // Attempt to persist to Supabase
+    try {
+      const { supabase } = await import('@/lib/supabaseClient');
+      await supabase.from('gym_settings').update({
+        gym_name: gymName.trim(),
+        upi_id: upiId.trim(),
+        qr_code_url: qrPreview,
+        enable_smart_entry: enableSmartEntry
+      }).eq('id', 1);
+    } catch (e) {
+      console.error('Failed to save settings to DB', e);
+    }
+
+    showToast('Gym profile & settings saved! ✓');
   };
 
   const addItem = (field: 'availablePlans' | 'batches' | 'durations', value: string, setter: (v: string) => void) => {
@@ -72,7 +87,28 @@ export default function Settings() {
           </Button>
         </div>
 
-        <Button variant="primary" fullWidth onClick={saveProfile}>Save Profile</Button>
+        <div style={{ marginTop: '16px' }}>
+          <p className="text-label" style={{ color: 'var(--color-text-secondary)', marginBottom: '8px' }}>Smart Entry (AI Form Filler)</p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button 
+              variant={enableSmartEntry ? "primary" : "ghost"} 
+              onClick={() => setEnableSmartEntry(true)}
+            >
+              Enabled
+            </Button>
+            <Button 
+              variant={!enableSmartEntry ? "primary" : "ghost"} 
+              onClick={() => setEnableSmartEntry(false)}
+            >
+              Disabled
+            </Button>
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '8px' }}>
+            Allow AI-powered copy-pasting of WhatsApp forwards and voice notes when adding members or logging payments.
+          </p>
+        </div>
+
+        <Button variant="primary" fullWidth onClick={saveProfile} style={{ marginTop: '16px' }}>Save Profile & Settings</Button>
       </div>
 
       {/* Manage Plans */}

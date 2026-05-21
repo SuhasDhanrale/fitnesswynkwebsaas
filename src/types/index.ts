@@ -73,4 +73,5 @@ export interface GymSettings {
   availablePlans: string[];  // ["Monthly Cardio", "Yearly", ...]
   batches: string[];         // ["6-7 AM", "7-8 AM", ...]
   durations: string[];       // ["1 Month", "3 Months", "1 Year"]
+  enableSmartEntry: boolean;
 }

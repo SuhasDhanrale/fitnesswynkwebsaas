@@ -151,21 +151,23 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
         {/* STEP 1: Identity */}
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'pageFadeIn 200ms ease' }}>
-            <SmartInput 
-              type="member" 
-              onParsed={(data) => {
-                if (data.name) setName(data.name);
-                if (data.phone) setPhone(data.phone);
-                if (data.amount) {
-                   setPayingNow(data.amount);
-                   setTotalFee(data.amount);
-                   setPayStatus('Fully Paid');
-                }
-                if (data.duration && state.settings.durations.includes(data.duration)) {
-                   setDuration(data.duration);
-                }
-              }} 
-            />
+            {state.settings.enableSmartEntry !== false && (
+              <SmartInput 
+                type="member" 
+                onParsed={(data) => {
+                  if (data.name) setName(data.name);
+                  if (data.phone) setPhone(data.phone);
+                  if (data.amount) {
+                     setPayingNow(data.amount);
+                     setTotalFee(data.amount);
+                     setPayStatus('Fully Paid');
+                  }
+                  if (data.duration && state.settings.durations.includes(data.duration)) {
+                     setDuration(data.duration);
+                  }
+                }} 
+              />
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <Input ref={nameInputRef} label="Full Name" value={name} onChange={e => setName(e.target.value)} error={errors.name} />
               <Input label="Phone Number" type="tel" maxLength={10} value={phone} onChange={e => setPhone(e.target.value)} error={errors.phone} />

@@ -24,6 +24,7 @@ const initialState: AppState = {
     availablePlans: [],
     batches: [],
     durations: [],
+    enableSmartEntry: true,
   },
   isLoading: true,
 };
@@ -63,6 +64,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               availablePlans: dbSettings.available_plans || [],
               batches: dbSettings.batches || [],
               durations: dbSettings.durations || [],
+              enableSmartEntry: dbSettings.enable_smart_entry ?? true,
             },
           });
         } else {
