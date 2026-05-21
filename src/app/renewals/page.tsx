@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useApp } from '@/context/AppContext';
+import { RefreshCw } from 'lucide-react';
+import { useMembers } from '@/hooks/useMembers';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { RenewMemberModal } from '@/components/modals/RenewMemberModal';
 import { isExpired, daysRemaining } from '@/lib/dateUtils';
 import { buildRenewalWhatsApp } from '@/lib/whatsapp';
@@ -11,10 +14,12 @@ import { Member } from '@/types';
 import styles from './page.module.css';
 
 export default function Renewals() {
-  const { state } = useApp();
+  const { data, isLoading } = useMembers({ pageSize: 500 });
   const [renewMember, setRenewMember] = useState<Member | null>(null);
 
-  const expiringMembers = state.members
+  const members = data?.data ?? [];
+
+  const expiringMembers = members
     .filter(m => {
       const now = Date.now();
       return m.expiryDate < now || (m.expiryDate - now < 7 * 86400000);
@@ -30,20 +35,39 @@ export default function Renewals() {
         {/* Header Stats */}
         <div className={styles.headerStats}>
           <div className={`${styles.statBox} ${styles.red}`}>
-            <div className={styles.statValue}>{expiredCount}</div>
+            <div className={styles.statValue}>
+              {isLoading ? <Skeleton width="32px" height="32px" /> : expiredCount}
+            </div>
             <div className={styles.statLabel}>Expired</div>
           </div>
           <div className={`${styles.statBox} ${styles.orange}`}>
-            <div className={styles.statValue}>{expiringSoonCount}</div>
+            <div className={styles.statValue}>
+              {isLoading ? <Skeleton width="32px" height="32px" /> : expiringSoonCount}
+            </div>
             <div className={styles.statLabel}>Expiring Soon</div>
           </div>
         </div>
 
-        {expiringMembers.length === 0 ? (
-          <div className={styles.emptyState}>
-            <p className="text-h3" style={{ color: 'var(--color-active-text)' }}>🎉 All memberships are healthy!</p>
-            <p className="text-body" style={{ color: 'var(--color-text-secondary)' }}>No renewals needed right now.</p>
+        {isLoading ? (
+          <div className={styles.cardList}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className={styles.memberCard} style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
+                <Skeleton height="20px" width="60%" />
+                <Skeleton height="14px" width="40%" />
+                <Skeleton height="14px" width="50%" />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <Skeleton height="36px" width="120px" borderRadius="8px" />
+                  <Skeleton height="36px" width="100px" borderRadius="8px" />
+                </div>
+              </div>
+            ))}
           </div>
+        ) : expiringMembers.length === 0 ? (
+          <EmptyState
+            icon={RefreshCw}
+            title="All memberships are healthy!"
+            description="No renewals needed right now."
+          />
         ) : (
           <div className={styles.cardList}>
             {expiringMembers.map(member => {

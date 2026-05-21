@@ -6,7 +6,6 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { FilterChip } from '@/components/ui/FilterChip';
-import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { processPaymentAndRenewal } from '@/lib/actions';
 import { calcEndDate } from '@/lib/dateUtils';
@@ -19,7 +18,6 @@ interface RenewMemberModalProps {
 }
 
 export const RenewMemberModal: React.FC<RenewMemberModalProps> = ({ isOpen, onClose, member }) => {
-  const { state, dispatch } = useApp();
   const { showToast } = useToast();
   const today = format(new Date(), 'yyyy-MM-dd');
   const [amount, setAmount] = useState('');
@@ -45,8 +43,9 @@ export const RenewMemberModal: React.FC<RenewMemberModalProps> = ({ isOpen, onCl
   const handleConfirm = () => {
     if (!amount || Number(amount) <= 0) { setError('Amount is required.'); return; }
 
-    processPaymentAndRenewal(dispatch, state, {
+    processPaymentAndRenewal({
       memberId: member.id,
+      memberName: member.name,
       amount: Number(amount),
       paymentMode: payMode,
       planName: member.planName,

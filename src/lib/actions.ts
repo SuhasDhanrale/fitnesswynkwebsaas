@@ -1,20 +1,15 @@
-import { Dispatch } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { AppAction, AppState } from '../context/AppContext';
 import { Member, Payment } from '../types';
 import { supabase } from './supabaseClient';
+import { queryClient } from './queryClient';
 
 // ─── Add Member ─────────────────────────────────────────────────────────────
 
 export const addMember = async (
-  dispatch: Dispatch<AppAction>,
   data: Omit<Member, 'id'> & { initialPayment: number }
 ) => {
   const { initialPayment, ...memberData } = data;
   const member: Member = { id: uuidv4(), ...memberData };
-
-  // Optimistic local update first (UI feels instant)
-  dispatch({ type: 'ADD_MEMBER', payload: member });
 
   // Persist to Supabase
   const { error: memberError } = await supabase.from('members').insert({
@@ -35,6 +30,10 @@ export const addMember = async (
     return;
   }
 
+  // Invalidate members cache
+  queryClient.invalidateQueries({ queryKey: ['members'] });
+  queryClient.invalidateQueries({ queryKey: ['members_list'] });
+
   // Log initial payment if provided
   if (initialPayment > 0) {
     const payment: Payment = {
@@ -50,7 +49,6 @@ export const addMember = async (
       notes: 'Initial payment',
       timestamp: Date.now(),
     };
-    dispatch({ type: 'ADD_PAYMENT', payload: payment });
 
     await supabase.from('payments').insert({
       id: payment.id,
@@ -65,18 +63,18 @@ export const addMember = async (
       notes: payment.notes,
       timestamp: payment.timestamp,
     });
+
+    queryClient.invalidateQueries({ queryKey: ['payments'] });
+    queryClient.invalidateQueries({ queryKey: ['payments', member.id] });
   }
 };
 
 // ─── Process Payment & Renewal ───────────────────────────────────────────────
 
 export const processPaymentAndRenewal = async (
-  dispatch: Dispatch<AppAction>,
-  state: AppState,
-  data: Omit<Payment, 'id' | 'memberName' | 'timestamp'>
+  data: Omit<Payment, 'id' | 'memberName' | 'timestamp'> & { memberName?: string }
 ) => {
-  const member = state.members.find((m) => m.id === data.memberId);
-  const memberName = member ? member.name : 'Manual Entry';
+  const memberName = data.memberName || 'Manual Entry';
 
   const payment: Payment = {
     ...data,
@@ -84,9 +82,6 @@ export const processPaymentAndRenewal = async (
     memberName,
     timestamp: Date.now(),
   };
-
-  // Optimistic local update
-  dispatch({ type: 'ADD_PAYMENT', payload: payment });
 
   // Persist payment to Supabase
   const { error: payError } = await supabase.from('payments').insert({
@@ -109,24 +104,18 @@ export const processPaymentAndRenewal = async (
   }
 
   // Update member expiry and clear dues
-  if (member) {
-    const updatedMember: Member = {
-      ...member,
-      planName: data.planName || member.planName,
-      batch: data.batch || member.batch,
-      startDate: data.startDate,
-      expiryDate: data.endDate,
-      dueAmount: 0,
-    };
+  await supabase.from('members').update({
+    plan_name: data.planName,
+    batch: data.batch,
+    start_date: data.startDate,
+    expiry_date: data.endDate,
+    due_amount: 0,
+  }).eq('id', data.memberId);
 
-    dispatch({ type: 'UPDATE_MEMBER', payload: updatedMember });
-
-    await supabase.from('members').update({
-      plan_name: updatedMember.planName,
-      batch: updatedMember.batch,
-      start_date: updatedMember.startDate,
-      expiry_date: updatedMember.expiryDate,
-      due_amount: 0,
-    }).eq('id', member.id);
-  }
+  // Invalidate relevant caches
+  queryClient.invalidateQueries({ queryKey: ['members'] });
+  queryClient.invalidateQueries({ queryKey: ['members_list'] });
+  queryClient.invalidateQueries({ queryKey: ['member', data.memberId] });
+  queryClient.invalidateQueries({ queryKey: ['payments'] });
+  queryClient.invalidateQueries({ queryKey: ['payments', data.memberId] });
 };

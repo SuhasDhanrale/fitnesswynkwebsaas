@@ -3,17 +3,20 @@
 import React, { useState } from 'react';
 import { User, UserMinus } from 'lucide-react';
 import { format } from 'date-fns';
-import { useApp } from '@/context/AppContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabaseClient';
+import { queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Drawer } from '@/components/ui/Drawer';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { EditMemberModal } from '@/components/modals/EditMemberModal';
 import { RenewMemberModal } from '@/components/modals/RenewMemberModal';
 import { ConfirmPinModal } from '@/components/modals/ConfirmPinModal';
 import { PaymentDetailModal } from '@/components/modals/PaymentDetailModal';
 import { isExpired, daysRemaining } from '@/lib/dateUtils';
 import { buildMemberWhatsApp, buildCallLink } from '@/lib/whatsapp';
-import { Payment } from '@/types';
+import { Member, Payment } from '@/types';
 import styles from './MemberDetailDrawer.module.css';
 
 interface MemberDetailDrawerProps {
@@ -22,17 +25,111 @@ interface MemberDetailDrawerProps {
 }
 
 export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId, onClose }) => {
-  const { state, dispatch } = useApp();
   const [activeTab, setActiveTab] = useState<'payments' | 'attendance'>('payments');
   const [editOpen, setEditOpen] = useState(false);
   const [renewOpen, setRenewOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
 
+  // Fetch member by id
+  const { data: member, isLoading: memberLoading } = useQuery({
+    queryKey: ['member', memberId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('members')
+        .select('*')
+        .eq('id', memberId)
+        .single();
+      if (error) throw error;
+      const m = data;
+      return {
+        id: m.id,
+        name: m.name,
+        phoneNumber: m.phone_number,
+        planName: m.plan_name,
+        batch: m.batch,
+        startDate: Number(m.start_date),
+        expiryDate: Number(m.expiry_date),
+        durationLabel: m.duration_label,
+        notes: m.notes || '',
+        dueAmount: Number(m.due_amount || 0),
+      } as Member;
+    },
+    enabled: !!memberId,
+  });
+
+  // Fetch member's payments
+  const { data: memberPayments = [], isLoading: paymentsLoading } = useQuery({
+    queryKey: ['payments', memberId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('member_id', memberId)
+        .order('timestamp', { ascending: false });
+      if (error) throw error;
+      return (data || []).map((p: Record<string, unknown>): Payment => ({
+        id: p.id as string,
+        memberId: p.member_id as string,
+        memberName: p.member_name as string,
+        amount: Number(p.amount),
+        paymentMode: p.payment_mode as 'Cash' | 'UPI',
+        planName: p.plan_name as string,
+        batch: p.batch as string,
+        startDate: Number(p.start_date),
+        endDate: Number(p.end_date),
+        notes: (p.notes as string) || '',
+        timestamp: Number(p.timestamp),
+      }));
+    },
+    enabled: !!memberId,
+  });
+
+  // Fetch member's attendance
+  const { data: memberAttendance = [], isLoading: attendanceLoading } = useQuery({
+    queryKey: ['attendance', memberId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('member_id', memberId)
+        .order('date', { ascending: false });
+      if (error) throw error;
+      return (data || []).map((a: Record<string, unknown>) => ({
+        id: a.id as string,
+        memberId: a.member_id as string,
+        memberName: a.member_name as string,
+        date: Number(a.date),
+      }));
+    },
+    enabled: !!memberId,
+  });
+
   if (!memberId) return null;
 
-  const member = state.members.find(m => m.id === memberId);
-  
+  const handleDelete = async () => {
+    if (!member) return;
+    await supabase.from('members').delete().eq('id', member.id);
+    queryClient.invalidateQueries({ queryKey: ['members'] });
+    queryClient.invalidateQueries({ queryKey: ['members_list'] });
+    queryClient.removeQueries({ queryKey: ['member', memberId] });
+    onClose();
+  };
+
+  if (memberLoading) {
+    return (
+      <Drawer isOpen={!!memberId} onClose={onClose} width="500px">
+        <div className={styles.container} style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '24px' }}>
+          <Skeleton height="80px" borderRadius="50%" width="80px" style={{ alignSelf: 'center' }} />
+          <Skeleton height="24px" width="60%" style={{ alignSelf: 'center' }} />
+          <Skeleton height="16px" width="40%" style={{ alignSelf: 'center' }} />
+          <Skeleton height="120px" borderRadius="12px" />
+          <Skeleton height="200px" borderRadius="12px" />
+        </div>
+      </Drawer>
+    );
+  }
+
   if (!member) {
     return (
       <Drawer isOpen={!!memberId} onClose={onClose} title="Member Details">
@@ -45,14 +142,8 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
     );
   }
 
-  const memberPayments = state.payments.filter(p => p.memberId === memberId).sort((a, b) => b.timestamp - a.timestamp);
   const expired = isExpired(member);
   const daysLeft = daysRemaining(member);
-
-  const handleDelete = () => {
-    dispatch({ type: 'DELETE_MEMBER', payload: member.id });
-    onClose();
-  };
 
   return (
     <>
@@ -117,23 +208,40 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
               <button className={`${styles.tab} ${activeTab === 'attendance' ? styles.active : ''}`} onClick={() => setActiveTab('attendance')}>Attendance History</button>
             </div>
             {activeTab === 'payments' && (
-              memberPayments.length === 0
-                ? <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>No payments found.</div>
-                : memberPayments.map(payment => (
-                  <div key={payment.id} className={styles.historyRow} style={{ cursor: 'pointer' }} onClick={() => setSelectedPayment(payment)}>
-                    <div>
-                      <div className={styles.historyMain}>{payment.memberName}</div>
-                      <div className={styles.historySub}>{format(payment.timestamp, 'dd MMM yyyy hh:mm a')}</div>
-                    </div>
-                    <div>
-                      <div className={styles.historyAmount}>₹{payment.amount}</div>
-                      <div className={styles.historyMode}>{payment.paymentMode}</div>
-                    </div>
+              paymentsLoading
+                ? <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <Skeleton height="48px" borderRadius="8px" />
+                    <Skeleton height="48px" borderRadius="8px" />
+                    <Skeleton height="48px" borderRadius="8px" />
                   </div>
-                ))
+                : memberPayments.length === 0
+                  ? <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>No payments found.</div>
+                  : memberPayments.map(payment => (
+                    <div key={payment.id} className={styles.historyRow} style={{ cursor: 'pointer' }} onClick={() => setSelectedPayment(payment)}>
+                      <div>
+                        <div className={styles.historyMain}>{payment.memberName}</div>
+                        <div className={styles.historySub}>{format(payment.timestamp, 'dd MMM yyyy hh:mm a')}</div>
+                      </div>
+                      <div>
+                        <div className={styles.historyAmount}>₹{payment.amount}</div>
+                        <div className={styles.historyMode}>{payment.paymentMode}</div>
+                      </div>
+                    </div>
+                  ))
             )}
             {activeTab === 'attendance' && (
-              <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Attendance history coming soon.</div>
+              attendanceLoading
+                ? <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <Skeleton height="40px" borderRadius="8px" />
+                    <Skeleton height="40px" borderRadius="8px" />
+                  </div>
+                : memberAttendance.length === 0
+                  ? <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>No attendance records found.</div>
+                  : memberAttendance.map((record: Record<string, unknown>) => (
+                    <div key={record.id as string} className={styles.historyRow}>
+                      <div className={styles.historyMain}>{format(record.date as number, 'dd MMM yyyy')}</div>
+                    </div>
+                  ))
             )}
           </div>
 

@@ -3,24 +3,34 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { PhoneOff } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
+import { useEnquiries } from '@/hooks/useEnquiries';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { AddEnquiryModal } from '@/components/modals/AddEnquiryModal';
 import { buildEnquiryWhatsApp, buildCallLink } from '@/lib/whatsapp';
+import { supabase } from '@/lib/supabaseClient';
+import { queryClient } from '@/lib/queryClient';
 import styles from './page.module.css';
 
 export default function Enquiries() {
-  const { state, dispatch } = useApp();
+  const { data: enquiries = [], isLoading } = useEnquiries();
   const [addOpen, setAddOpen] = useState(false);
 
-  const toggleConverted = (id: string) => {
-    const enquiry = state.enquiries.find(e => e.id === id);
-    if (enquiry) dispatch({ type: 'UPDATE_ENQUIRY', payload: { ...enquiry, isConverted: !enquiry.isConverted } });
+  const toggleConverted = async (id: string) => {
+    const enquiry = enquiries.find(e => e.id === id);
+    if (!enquiry) return;
+    await supabase
+      .from('enquiries')
+      .update({ is_converted: !enquiry.isConverted })
+      .eq('id', id);
+    queryClient.invalidateQueries({ queryKey: ['enquiries'] });
   };
 
-  const handleDelete = (id: string) => {
-    dispatch({ type: 'DELETE_ENQUIRY', payload: id });
+  const handleDelete = async (id: string) => {
+    await supabase.from('enquiries').delete().eq('id', id);
+    queryClient.invalidateQueries({ queryKey: ['enquiries'] });
   };
 
   return (
@@ -30,15 +40,29 @@ export default function Enquiries() {
           <Button variant="primary" icon="UserPlus" onClick={() => setAddOpen(true)}>Add Enquiry</Button>
         </div>
 
-        {state.enquiries.length === 0 ? (
-          <div className={styles.emptyState}>
-            <PhoneOff size={64} style={{ opacity: 0.3 }} />
-            <p className="text-body-lg">No enquiries yet</p>
-            <p className="text-body" style={{ color: 'var(--color-text-secondary)' }}>Add your first lead using the button above.</p>
+        {isLoading ? (
+          <div className={styles.cardList}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className={styles.enquiryCard} style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px' }}>
+                <Skeleton height="18px" width="50%" />
+                <Skeleton height="14px" width="35%" />
+                <Skeleton height="14px" width="60%" />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <Skeleton height="34px" width="80px" borderRadius="8px" />
+                  <Skeleton height="34px" width="100px" borderRadius="8px" />
+                </div>
+              </div>
+            ))}
           </div>
+        ) : enquiries.length === 0 ? (
+          <EmptyState
+            icon={PhoneOff}
+            title="No enquiries yet"
+            description="Add your first lead using the button above."
+          />
         ) : (
           <div className={styles.cardList}>
-            {[...state.enquiries].sort((a, b) => b.timestamp - a.timestamp).map(enquiry => (
+            {[...enquiries].sort((a, b) => b.timestamp - a.timestamp).map(enquiry => (
               <div key={enquiry.id} className={`${styles.enquiryCard} ${enquiry.isConverted ? styles.converted : ''}`}>
                 <div className={styles.cardTop}>
                   <label className={styles.convertLabel}>

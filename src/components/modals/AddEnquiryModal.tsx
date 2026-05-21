@@ -8,6 +8,8 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
+import { supabase } from '@/lib/supabaseClient';
+import { queryClient } from '@/lib/queryClient';
 
 interface AddEnquiryModalProps {
   isOpen: boolean;
@@ -15,7 +17,7 @@ interface AddEnquiryModalProps {
 }
 
 export const AddEnquiryModal: React.FC<AddEnquiryModalProps> = ({ isOpen, onClose }) => {
-  const { state, dispatch } = useApp();
+  const { state } = useApp();
   const { showToast } = useToast();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -23,24 +25,29 @@ export const AddEnquiryModal: React.FC<AddEnquiryModalProps> = ({ isOpen, onClos
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const errs: Record<string, string> = {};
     if (!name.trim()) errs.name = 'Name is required.';
     if (!/^\d{10}$/.test(phone)) errs.phone = 'Must be exactly 10 digits.';
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
-    dispatch({
-      type: 'ADD_ENQUIRY',
-      payload: {
-        id: uuidv4(),
-        name: name.trim(),
-        phoneNumber: phone.trim(),
-        planOfInterest,
-        notes: notes.trim(),
-        isConverted: false,
-        timestamp: Date.now(),
-      },
+    const { error } = await supabase.from('enquiries').insert({
+      id: uuidv4(),
+      name: name.trim(),
+      phone_number: phone.trim(),
+      plan_of_interest: planOfInterest,
+      notes: notes.trim(),
+      is_converted: false,
+      timestamp: Date.now(),
     });
+
+    if (error) {
+      console.error('Error saving enquiry:', error.message);
+      showToast('Failed to save enquiry. Please try again.');
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['enquiries'] });
     showToast(`Enquiry for ${name.trim()} added! ✓`);
     setName(''); setPhone(''); setNotes(''); setErrors({});
     onClose();

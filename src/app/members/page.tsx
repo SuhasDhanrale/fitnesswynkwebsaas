@@ -7,49 +7,71 @@ import { Button } from '@/components/ui/Button';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { MemberDetailDrawer } from '@/components/modals/MemberDetailDrawer';
+import { AddMemberModal } from '@/components/modals/AddMemberModal';
+import { useMembers } from '@/hooks/useMembers';
 import { isExpired, daysRemaining } from '@/lib/dateUtils';
+import { queryClient } from '@/lib/queryClient';
 import styles from './page.module.css';
 
 export default function MembersDirectory() {
   const { state } = useApp();
-
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Expired'>('All');
   const [planFilter, setPlanFilter] = useState('All');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
 
-  // Filter logic
-  const filteredMembers = state.members.filter(m => {
-    const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          m.phoneNumber.includes(searchQuery);
-    const expired = isExpired(m);
-    const matchesStatus = statusFilter === 'All' ? true :
-                          statusFilter === 'Active' ? !expired : expired;
-    const matchesPlan = planFilter === 'All' ? true : m.planName === planFilter;
-
-    return matchesSearch && matchesStatus && matchesPlan;
+  const { data, isLoading } = useMembers({
+    search: searchQuery,
+    status: statusFilter,
+    plan: planFilter,
   });
 
-  // Plan Stats logic
+  const members = data?.data ?? [];
+
+  // Plan stats from members hook (all plans, no filter)
+  const { data: allData } = useMembers({});
   const planStats = state.settings.availablePlans.map(plan => ({
     name: plan,
-    count: state.members.filter(m => m.planName === plan).length
+    count: allData?.data.filter(m => m.planName === plan).length ?? 0,
   }));
+
+  if (isLoading && !data) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <Skeleton width="300px" height="40px" borderRadius="8px" />
+          <Skeleton width="120px" height="40px" borderRadius="8px" />
+        </div>
+        <div className={styles.filters}>
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} width="80px" height="32px" borderRadius="16px" />)}
+        </div>
+        <div className={styles.planStatsRow}>
+          {[1, 2, 3].map(i => <Skeleton key={i} width="120px" height="60px" borderRadius="8px" />)}
+        </div>
+        <div className={styles.memberList}>
+          {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} height="70px" borderRadius="8px" style={{ marginBottom: '8px' }} />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className={styles.container}>
         <div className={styles.header}>
           <div className={styles.searchWrapper}>
-             <Input 
-               label="Search Members..." 
-               value={searchQuery} 
-               onChange={(e) => setSearchQuery(e.target.value)} 
-             />
-             <Search size={18} className={styles.searchIcon} />
+            <Input
+              label="Search Members..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <Search size={18} className={styles.searchIcon} />
           </div>
-          <Button variant="primary" icon="UserPlus" onClick={() => { /* Open AddMemberModal */ }}>Add Member</Button>
+          <Button variant="primary" icon="UserPlus" onClick={() => setAddMemberOpen(true)}>Add Member</Button>
         </div>
 
         <div className={styles.filters}>
@@ -81,16 +103,15 @@ export default function MembersDirectory() {
             <div></div>
           </div>
 
-          {filteredMembers.length === 0 ? (
-            <div className={styles.emptyState}>
-              <UserX size={64} style={{ opacity: 0.3 }} />
-              <div>
-                <p className="text-body-lg">No members found</p>
-                <p className="text-body">Try adjusting your filters or search query.</p>
-              </div>
-            </div>
+          {members.length === 0 ? (
+            <EmptyState
+              icon={UserX}
+              title="No members found"
+              description="Try adjusting your filters or search query."
+              action={searchQuery ? <Button variant="primary" onClick={() => setSearchQuery('')}>Clear Search</Button> : undefined}
+            />
           ) : (
-            filteredMembers.map(member => {
+            members.map(member => {
               const expired = isExpired(member);
               const daysLeft = daysRemaining(member);
 
@@ -146,10 +167,8 @@ export default function MembersDirectory() {
         </div>
       </div>
 
-      <MemberDetailDrawer 
-        memberId={selectedMemberId} 
-        onClose={() => setSelectedMemberId(null)} 
-      />
+      <MemberDetailDrawer memberId={selectedMemberId} onClose={() => setSelectedMemberId(null)} />
+      <AddMemberModal isOpen={addMemberOpen} onClose={() => { setAddMemberOpen(false); queryClient.invalidateQueries({ queryKey: ['members'] }); queryClient.invalidateQueries({ queryKey: ['members_list'] }); queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] }); }} />
     </>
   );
 }

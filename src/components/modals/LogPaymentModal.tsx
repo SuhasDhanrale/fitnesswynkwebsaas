@@ -10,9 +10,12 @@ import { FilterChip } from '@/components/ui/FilterChip';
 import { Stepper } from '@/components/ui/Stepper';
 import { SmartInput } from '@/components/ui/SmartInput';
 import { useApp } from '@/context/AppContext';
+import { useMembersList } from '@/hooks/useMembers';
 import { useToast } from '@/components/ui/Toast';
-import { processPaymentAndRenewal } from '@/lib/actions';
+import { supabase } from '@/lib/supabaseClient';
+import { queryClient } from '@/lib/queryClient';
 import { calcEndDate } from '@/lib/dateUtils';
+import { v4 as uuidv4 } from 'uuid';
 import { Settings } from 'lucide-react';
 
 interface LogPaymentModalProps {
@@ -21,8 +24,9 @@ interface LogPaymentModalProps {
 }
 
 export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClose }) => {
-  const { state, dispatch } = useApp();
+  const { state } = useApp();
   const { showToast } = useToast();
+  const { data: membersList = [] } = useMembersList();
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const [step, setStep] = useState(1);
@@ -60,55 +64,91 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
   }, [startDate, duration]);
 
   const memberResults = memberSearch.length >= 2
-    ? state.members.filter(m => m.name.toLowerCase().includes(memberSearch.toLowerCase())).slice(0, 5)
+    ? membersList.filter(m => m.name.toLowerCase().includes(memberSearch.toLowerCase())).slice(0, 5)
     : [];
 
   const isDirty = !!selectedMemberId || amount.trim().length > 0;
 
-  const selectMember = (id: string) => {
-    const m = state.members.find(x => x.id === id);
+  const selectMember = async (id: string) => {
+    const m = membersList.find(x => x.id === id);
     if (!m) return;
     setSelectedMemberId(id);
     setMemberSearch(m.name);
-    
-    // Auto-fill defaults in background (in case they don't edit)
-    setPlan(m.planName);
-    setBatch(m.batch);
-    setDuration(m.durationLabel);
-    
-    const newStartMs = Math.max(new Date(today).getTime(), m.expiryDate);
-    setStartDate(format(newStartMs, 'yyyy-MM-dd'));
-    
+
+    // Fetch full member details for plan/batch/expiry auto-fill
+    const { data: fullMember } = await supabase
+      .from('members')
+      .select('plan_name, batch, duration_label, expiry_date')
+      .eq('id', id)
+      .single();
+
+    if (fullMember) {
+      setPlan(fullMember.plan_name);
+      setBatch(fullMember.batch);
+      setDuration(fullMember.duration_label);
+      const newStartMs = Math.max(new Date(today).getTime(), Number(fullMember.expiry_date));
+      setStartDate(format(newStartMs, 'yyyy-MM-dd'));
+    }
+
     setShowDropdown(false);
-    
-    // Drop focus straight to Amount
     setTimeout(() => {
       document.getElementById('amount-₹')?.focus();
     }, 100);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const errs: Record<string, string> = {};
     if (!selectedMemberId) errs.member = 'Please select a valid member.';
     if (!amount || Number(amount) <= 0) errs.amount = 'Amount is required.';
-    
+
     if (Object.keys(errs).length) {
       setErrors(errs);
-      if (step === 2) setStep(1); // kick back if trying to submit from step 2 with no amount
+      if (step === 2) setStep(1);
       return;
     }
 
-    processPaymentAndRenewal(dispatch, state, {
-      memberId: selectedMemberId,
+    const selectedMember = membersList.find(m => m.id === selectedMemberId);
+    const memberName = selectedMember ? selectedMember.name : 'Manual Entry';
+    const paymentId = uuidv4();
+    const timestamp = Date.now();
+
+    // Insert payment
+    const { error: payError } = await supabase.from('payments').insert({
+      id: paymentId,
+      member_id: selectedMemberId,
+      member_name: memberName,
       amount: Number(amount),
-      paymentMode: payMode,
-      planName: plan,
+      payment_mode: payMode,
+      plan_name: plan,
       batch,
-      startDate: new Date(startDate).getTime(),
-      endDate: new Date(endDate).getTime(),
+      start_date: new Date(startDate).getTime(),
+      end_date: new Date(endDate).getTime(),
       notes: notes.trim(),
+      timestamp,
     });
-    
+
+    if (payError) {
+      console.error('Error saving payment:', payError.message);
+      showToast('Failed to save payment. Please try again.');
+      return;
+    }
+
+    // Update member expiry
+    await supabase.from('members').update({
+      plan_name: plan,
+      batch,
+      start_date: new Date(startDate).getTime(),
+      expiry_date: new Date(endDate).getTime(),
+      due_amount: 0,
+    }).eq('id', selectedMemberId);
+
+    // Invalidate caches
+    queryClient.invalidateQueries({ queryKey: ['members'] });
+    queryClient.invalidateQueries({ queryKey: ['members_list'] });
+    queryClient.invalidateQueries({ queryKey: ['member', selectedMemberId] });
+    queryClient.invalidateQueries({ queryKey: ['payments', selectedMemberId] });
+    queryClient.invalidateQueries({ queryKey: ['payments'] });
+
     showToast(`Payment of ₹${amount} logged successfully! ✓`);
     onClose();
   };
@@ -116,7 +156,7 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !showDropdown) {
       e.preventDefault();
-      handleConfirm(); // Enter always submits the payment instantly
+      handleConfirm();
     }
   };
 
@@ -195,7 +235,7 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
                       onMouseLeave={e => (e.currentTarget.style.background = '')}
                     >
                       <strong>{m.name}</strong>
-                      <span style={{ color: 'var(--color-text-secondary)', marginLeft: '8px' }}>{m.planName}</span>
+                      <span style={{ color: 'var(--color-text-secondary)', marginLeft: '8px' }}>{m.phoneNumber}</span>
                     </div>
                   ))}
                 </div>

@@ -10,7 +10,8 @@ export const isExpiringSoon = (member: Member) => {
   return member.expiryDate > now && member.expiryDate < now + 7 * 86400000;
 };
 
-export const calcEndDate = (startMs: number, duration: string): number => {
+export const calcEndDate = (startMs: number, duration?: string): number => {
+  if (!duration) return addMonths(new Date(startMs), 1).getTime();
   const parts = duration.trim().split(' ');
   if (parts.length < 2) return addMonths(new Date(startMs), 1).getTime();
   

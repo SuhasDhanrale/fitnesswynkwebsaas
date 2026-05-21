@@ -1,44 +1,63 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { useApp } from '@/context/AppContext';
+import { CheckCircle, Wallet } from 'lucide-react';
 import { StatCard } from '@/components/ui/StatCard';
 import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { AddMemberModal } from '@/components/modals/AddMemberModal';
 import { LogPaymentModal } from '@/components/modals/LogPaymentModal';
-import { isExpired, isExpiringSoon, isSameMonth, getTodayMidnight, daysRemaining } from '@/lib/dateUtils';
+import { useDashboardStats } from '@/hooks/useDashboardStats';
+import { usePayments } from '@/hooks/useFinanceData';
+import { queryClient } from '@/lib/queryClient';
 import styles from './page.module.css';
+import { useState } from 'react';
 
 export default function Dashboard() {
-  const { state } = useApp();
   const router = useRouter();
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [logPaymentOpen, setLogPaymentOpen] = useState(false);
 
-  const todayMidnight = getTodayMidnight();
-  const activeMembersCount = state.members.filter(m => !isExpired(m)).length;
-  const presentTodayCount = state.attendance.filter(a => a.date === todayMidnight).length;
-  const expiringSoonCount = state.members.filter(m => isExpiringSoon(m)).length;
-  const monthlyCollection = state.payments
-    .filter(p => isSameMonth(p.timestamp, Date.now()))
-    .reduce((sum, p) => sum + p.amount, 0);
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const { data: paymentsData, isLoading: paymentsLoading } = usePayments(0, 5);
 
-  const recentPayments = [...state.payments].sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
-  const actionRequiredMembers = [...state.members]
-    .filter(m => isExpiringSoon(m) || isExpired(m))
-    .sort((a, b) => a.expiryDate - b.expiryDate)
-    .slice(0, 5);
+  const recentPayments = paymentsData?.data ?? [];
+  const isLoading = statsLoading && paymentsLoading;
+
+  if (isLoading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.statsGrid}>
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} height="100px" borderRadius="12px" />)}
+        </div>
+        <div className={styles.quickActions}>
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} height="40px" borderRadius="8px" />)}
+        </div>
+        <div className={styles.columns}>
+          <div className={styles.sectionCard}>
+            <Skeleton height="24px" width="150px" style={{ marginBottom: '16px' }} />
+            {[1, 2, 3].map(i => <Skeleton key={i} height="60px" style={{ marginBottom: '12px' }} borderRadius="8px" />)}
+          </div>
+          <div className={styles.sectionCard}>
+            <Skeleton height="24px" width="150px" style={{ marginBottom: '16px' }} />
+            {[1, 2, 3].map(i => <Skeleton key={i} height="60px" style={{ marginBottom: '12px' }} borderRadius="8px" />)}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className={styles.container}>
         <div className={styles.statsGrid}>
-          <StatCard label="Active Members" value={activeMembersCount} icon="Users" onClick={() => router.push('/members')} />
-          <StatCard label="Present Today" value={presentTodayCount} icon="CheckSquare" bgColor="var(--color-active-bg)" onClick={() => router.push('/attendance')} />
-          <StatCard label="Expiring (7 Days)" value={expiringSoonCount} icon="AlertTriangle" bgColor="var(--color-warning-bg)" onClick={() => router.push('/renewals')} />
-          <StatCard label="This Month Collection" value={`₹${monthlyCollection.toLocaleString('en-IN')}`} icon="Wallet" bgColor="var(--color-primary-light)" onClick={() => router.push('/finances')} />
+          <StatCard label="Active Members" value={stats?.active_members ?? 0} icon="Users" onClick={() => router.push('/members')} />
+          <StatCard label="Present Today" value={stats?.present_today ?? 0} icon="CheckSquare" bgColor="var(--color-active-bg)" onClick={() => router.push('/attendance')} />
+          <StatCard label="Expiring (7 Days)" value={stats?.expiring_soon ?? 0} icon="AlertTriangle" bgColor="var(--color-warning-bg)" onClick={() => router.push('/renewals')} />
+          <StatCard label="This Month Collection" value={`₹${(stats?.monthly_collection ?? 0).toLocaleString('en-IN')}`} icon="Wallet" bgColor="var(--color-primary-light)" onClick={() => router.push('/finances')} />
         </div>
 
         <div className={styles.quickActions}>
@@ -48,9 +67,9 @@ export default function Dashboard() {
           <Button variant="ghost" icon="PhoneCall" onClick={() => router.push('/enquiries')}>Enquiries</Button>
         </div>
 
-        {expiringSoonCount > 0 && (
+        {(stats?.expiring_soon ?? 0) > 0 && (
           <div className={styles.alertBanner}>
-            <span className={styles.alertText}>⚠ {expiringSoonCount} memberships expiring soon</span>
+            <span className={styles.alertText}>⚠ {stats!.expiring_soon} memberships expiring soon</span>
             <Button variant="ghost" onClick={() => router.push('/renewals')}>Check Now →</Button>
           </div>
         )}
@@ -58,8 +77,10 @@ export default function Dashboard() {
         <div className={styles.columns}>
           <div className={styles.sectionCard}>
             <h3 className={styles.sectionTitle}>Recent Payments</h3>
-            {recentPayments.length === 0 ? (
-              <p className="text-body" style={{ color: 'var(--color-text-secondary)' }}>No recent payments.</p>
+            {paymentsLoading ? (
+              [1, 2, 3].map(i => <Skeleton key={i} height="56px" style={{ marginBottom: '8px' }} borderRadius="8px" />)
+            ) : recentPayments.length === 0 ? (
+              <EmptyState icon={Wallet} title="No recent payments" description="Payments logged today will appear here." />
             ) : (
               recentPayments.map(payment => (
                 <div key={payment.id} className={styles.listItem}>
@@ -75,31 +96,19 @@ export default function Dashboard() {
 
           <div className={styles.sectionCard}>
             <h3 className={styles.sectionTitle}>Action Required</h3>
-            {actionRequiredMembers.length === 0 ? (
-              <p className="text-body" style={{ color: 'var(--color-text-secondary)' }}>All memberships are healthy! 🎉</p>
+            {stats?.expiring_soon === 0 ? (
+              <EmptyState icon={CheckCircle} title="All clear!" description="No memberships are expiring soon." />
             ) : (
-              actionRequiredMembers.map(member => {
-                const expired = isExpired(member);
-                const days = daysRemaining(member);
-                return (
-                  <div key={member.id} className={`${styles.expiryCard} ${expired ? styles.expired : ''}`}>
-                    <div>
-                      <div className={styles.expiryName}>{member.name}</div>
-                      <div className={styles.expiryDays}>
-                        {expired ? `Expired ${Math.abs(days)} days ago` : `Expires in ${days} days`}
-                      </div>
-                    </div>
-                    <Button variant="ghost" onClick={() => router.push(`/members/${member.id}`)}>View</Button>
-                  </div>
-                );
-              })
+              <Button variant="ghost" onClick={() => router.push('/renewals')}>
+                View {stats?.expiring_soon} expiring members →
+              </Button>
             )}
           </div>
         </div>
       </div>
 
-      <AddMemberModal isOpen={addMemberOpen} onClose={() => setAddMemberOpen(false)} />
-      <LogPaymentModal isOpen={logPaymentOpen} onClose={() => setLogPaymentOpen(false)} />
+      <AddMemberModal isOpen={addMemberOpen} onClose={() => { setAddMemberOpen(false); queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] }); queryClient.invalidateQueries({ queryKey: ['members'] }); }} />
+      <LogPaymentModal isOpen={logPaymentOpen} onClose={() => { setLogPaymentOpen(false); queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] }); queryClient.invalidateQueries({ queryKey: ['payments'] }); }} />
     </>
   );
 }

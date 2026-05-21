@@ -22,7 +22,7 @@ interface AddMemberModalProps {
 type PaymentStatus = 'Fully Paid' | 'Partial' | 'Unpaid';
 
 export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose }) => {
-  const { state, dispatch } = useApp();
+  const { state } = useApp();
   const { showToast } = useToast();
   const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -90,7 +90,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
       payStatus === 'Fully Paid' ? Number(payingNow) :
       payStatus === 'Partial'    ? Number(payingNow) : 0;
 
-    addMember(dispatch, {
+    addMember({
       name: name.trim(),
       phoneNumber: phone.trim(),
       planName: plan,

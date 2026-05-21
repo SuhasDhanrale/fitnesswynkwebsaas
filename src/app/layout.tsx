@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastProvider } from "@/components/ui/Toast";
+import { ReactQueryProvider } from "@/lib/ReactQueryProvider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-heading" });
@@ -21,11 +22,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning className={`${inter.variable} ${outfit.variable}`}>
-        <AppProvider>
-          <ToastProvider>
-            <AppShell>{children}</AppShell>
-          </ToastProvider>
-        </AppProvider>
+        <ReactQueryProvider>
+          <AppProvider>
+            <ToastProvider>
+              <AppShell>{children}</AppShell>
+            </ToastProvider>
+          </AppProvider>
+        </ReactQueryProvider>
       </body>
     </html>
   );

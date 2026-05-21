@@ -8,6 +8,9 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { ConfirmPinModal } from './ConfirmPinModal';
 import { useApp } from '@/context/AppContext';
+import { supabase } from '@/lib/supabaseClient';
+import { queryClient } from '@/lib/queryClient';
+import { useToast } from '@/components/ui/Toast';
 import { calcEndDate } from '@/lib/dateUtils';
 import { Member } from '@/types';
 
@@ -18,7 +21,8 @@ interface EditMemberModalProps {
 }
 
 export const EditMemberModal: React.FC<EditMemberModalProps> = ({ isOpen, onClose, member }) => {
-  const { state, dispatch } = useApp();
+  const { state } = useApp();
+  const { showToast } = useToast();
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [name, setName] = useState(member.name);
   const [phone, setPhone] = useState(member.phoneNumber);
@@ -61,22 +65,33 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({ isOpen, onClos
     setPinModalOpen(true);
   };
 
-  const handleConfirmedSave = () => {
-    dispatch({
-      type: 'UPDATE_MEMBER',
-      payload: {
-        ...member,
+  const handleConfirmedSave = async () => {
+    const { error } = await supabase
+      .from('members')
+      .update({
         name: name.trim(),
-        phoneNumber: phone.trim(),
-        planName: plan,
+        phone_number: phone.trim(),
+        plan_name: plan,
         batch,
-        durationLabel: duration,
-        startDate: new Date(startDate).getTime(),
-        expiryDate: new Date(expiryDate).getTime(),
+        duration_label: duration,
+        start_date: new Date(startDate).getTime(),
+        expiry_date: new Date(expiryDate).getTime(),
         notes: notes.trim(),
-        dueAmount: markFullyPaid ? 0 : member.dueAmount,
-      },
-    });
+        due_amount: markFullyPaid ? 0 : member.dueAmount,
+      })
+      .eq('id', member.id);
+
+    if (error) {
+      showToast(`Failed to update member: ${error.message}`, 'error');
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['members'] });
+    queryClient.invalidateQueries({ queryKey: ['members_list'] });
+    queryClient.invalidateQueries({ queryKey: ['member', member.id] });
+
+    showToast('Member updated successfully!');
+    setPinModalOpen(false);
     onClose();
   };
 

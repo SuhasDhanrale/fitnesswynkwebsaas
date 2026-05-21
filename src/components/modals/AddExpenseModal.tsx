@@ -5,7 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { useApp } from '@/context/AppContext';
+import { supabase } from '@/lib/supabaseClient';
+import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/components/ui/Toast';
 
 interface AddExpenseModalProps {
@@ -14,30 +15,36 @@ interface AddExpenseModalProps {
 }
 
 export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
-  const { dispatch } = useApp();
   const { showToast } = useToast();
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const errs: Record<string, string> = {};
     if (!title.trim()) errs.title = 'Title is required.';
     if (!amount || Number(amount) <= 0) errs.amount = 'Amount is required.';
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
-    dispatch({
-      type: 'ADD_EXPENSE',
-      payload: {
-        id: uuidv4(),
-        title: title.trim(),
-        amount: Number(amount),
-        date: Date.now(),
-        notes: notes.trim(),
-        category: 'General',
-      },
+    const { error } = await supabase.from('expenses').insert({
+      id: uuidv4(),
+      title: title.trim(),
+      amount: Number(amount),
+      date: Date.now(),
+      notes: notes.trim(),
+      category: 'General',
     });
+
+    if (error) {
+      showToast(`Failed to add expense: ${error.message}`, 'error');
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['expenses'] });
+    queryClient.invalidateQueries({ queryKey: ['finance_stats'] });
+    queryClient.invalidateQueries({ queryKey: ['finance_summary'] });
+
     showToast(`Expense "${title.trim()}" added! ✓`);
     setTitle(''); setAmount(''); setNotes(''); setErrors({});
     onClose();

@@ -4,6 +4,7 @@ import React, { ReactNode, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { useApp } from '@/context/AppContext';
+import { CommandPalette } from '@/components/ui/CommandPalette';
 import styles from './AppShell.module.css';
 import { usePathname } from 'next/navigation';
 
@@ -15,6 +16,7 @@ const pageTitles: Record<string, string> = {
   '/finances':   'Finances',
   '/enquiries':  'Enquiries',
   '/marketing':  'Marketing',
+  '/insights':   'Insights',
   '/settings':   'Settings',
 };
 
@@ -34,6 +36,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children, actions }) => {
 
   return (
     <div className={styles.shell}>
+      <CommandPalette />
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
