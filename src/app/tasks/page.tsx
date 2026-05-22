@@ -3,9 +3,12 @@
 import React, { useState } from 'react';
 import { format, isPast, isToday, addDays } from 'date-fns';
 import { Plus, MoreVertical, Clock } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
-import { mockTasks } from '@/data/mockData';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { Task } from '@/types';
+import { supabase } from '@/lib/supabaseClient';
+import { queryClient } from '@/lib/queryClient';
 import styles from './page.module.css';
 import { TaskModal } from '@/components/modals/TaskModal';
 
@@ -15,18 +18,43 @@ const COLUMNS: { id: Task['status']; label: string }[] = [
   { id: 'DONE', label: 'Done' },
 ];
 
+async function fetchTasks(): Promise<Task[]> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .order('timestamp', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((t: Record<string, unknown>): Task => ({
+    id: t.id as string,
+    title: t.title as string,
+    description: (t.description as string) || '',
+    assignee: (t.assignee as string) || 'Admin',
+    status: t.status as Task['status'],
+    priority: t.priority as Task['priority'],
+    dueDate: t.due_date ? Number(t.due_date) : null,
+    timestamp: Number(t.timestamp),
+  }));
+}
+
+function invalidateTasks() {
+  queryClient.invalidateQueries({ queryKey: ['tasks'] });
+}
+
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+  const { data: tasks = [], isLoading } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: fetchTasks,
+  });
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
-  
+
   // Drag and Drop State
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedTaskId(id);
     e.dataTransfer.effectAllowed = 'move';
-    // Small delay to allow the drag image to generate before adding styles
     setTimeout(() => {
       const el = document.getElementById(`task-${id}`);
       if (el) el.style.opacity = '0.5';
@@ -44,14 +72,19 @@ export default function TasksPage() {
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e: React.DragEvent, status: Task['status']) => {
+  const handleDrop = async (e: React.DragEvent, status: Task['status']) => {
     e.preventDefault();
     if (!draggedTaskId) return;
 
-    setTasks(prev => prev.map(task => 
-      task.id === draggedTaskId ? { ...task, status } : task
-    ));
+    // Optimistic update
+    queryClient.setQueryData(['tasks'], (old: Task[] | undefined) =>
+      (old || []).map(t => t.id === draggedTaskId ? { ...t, status } : t)
+    );
     setDraggedTaskId(null);
+
+    // Persist to Supabase
+    await supabase.from('tasks').update({ status }).eq('id', draggedTaskId);
+    invalidateTasks();
   };
 
   const openNewTaskModal = () => {
@@ -64,22 +97,30 @@ export default function TasksPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveTask = (taskData: Partial<Task>) => {
+  const handleSaveTask = async (taskData: Partial<Task>) => {
     if (editingTask) {
-      setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...taskData } as Task : t));
+      // Update existing task
+      await supabase.from('tasks').update({
+        title: taskData.title,
+        description: taskData.description,
+        assignee: taskData.assignee,
+        status: taskData.status,
+        priority: taskData.priority,
+        due_date: taskData.dueDate ?? null,
+      }).eq('id', editingTask.id);
     } else {
-      const newTask: Task = {
-        id: crypto.randomUUID(),
+      // Insert new task
+      await supabase.from('tasks').insert({
         title: taskData.title || '',
         description: taskData.description || '',
-        assignee: taskData.assignee || 'Unassigned',
+        assignee: taskData.assignee || 'Admin',
         status: taskData.status || 'TODO',
         priority: taskData.priority || 'MEDIUM',
-        dueDate: taskData.dueDate || null,
+        due_date: taskData.dueDate ?? null,
         timestamp: Date.now(),
-      };
-      setTasks(prev => [...prev, newTask]);
+      });
     }
+    invalidateTasks();
     setIsModalOpen(false);
   };
 
@@ -162,7 +203,11 @@ export default function TasksPage() {
                 </Button>
               </div>
               
-              {colTasks.length === 0 ? (
+              {isLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {[1, 2].map(i => <Skeleton key={i} height="100px" borderRadius="12px" />)}
+                </div>
+              ) : colTasks.length === 0 ? (
                 <div className={styles.emptyColumn}>No tasks</div>
               ) : (
                 colTasks.map(renderTaskCard)

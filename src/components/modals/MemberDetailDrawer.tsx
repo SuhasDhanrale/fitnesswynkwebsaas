@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { queryClient } from '@/lib/queryClient';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Drawer } from '@/components/ui/Drawer';
@@ -25,6 +26,7 @@ interface MemberDetailDrawerProps {
 }
 
 export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId, onClose }) => {
+  const { logAction } = useAuth();
   const [activeTab, setActiveTab] = useState<'payments' | 'attendance'>('payments');
   const [editOpen, setEditOpen] = useState(false);
   const [renewOpen, setRenewOpen] = useState(false);
@@ -110,6 +112,9 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
   const handleDelete = async () => {
     if (!member) return;
     await supabase.from('members').delete().eq('id', member.id);
+    
+    logAction('Deleted Member', { memberName: member.name });
+    
     queryClient.invalidateQueries({ queryKey: ['members'] });
     queryClient.invalidateQueries({ queryKey: ['members_list'] });
     queryClient.removeQueries({ queryKey: ['member', memberId] });

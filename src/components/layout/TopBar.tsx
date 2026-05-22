@@ -8,9 +8,11 @@ interface TopBarProps {
   title: string;
   actions?: ReactNode;
   onMenuClick: () => void;
+  currentUser?: string | null;
+  onSwitchUser?: () => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ title, actions, onMenuClick }) => {
+export const TopBar: React.FC<TopBarProps> = ({ title, actions, onMenuClick, currentUser, onSwitchUser }) => {
   return (
     <header className={styles.topBar}>
       <div className={styles.left}>
@@ -19,7 +21,15 @@ export const TopBar: React.FC<TopBarProps> = ({ title, actions, onMenuClick }) =
         </button>
         <h1 className={styles.title}>{title}</h1>
       </div>
-      {actions && <div className={styles.right}>{actions}</div>}
+      <div className={styles.right}>
+        {actions}
+        {currentUser && (
+          <button className={styles.userChip} onClick={onSwitchUser} title="Switch user">
+            <div className={styles.userAvatar}>{currentUser[0].toUpperCase()}</div>
+            <span className={styles.userName}>{currentUser}</span>
+          </button>
+        )}
+      </div>
     </header>
   );
 };

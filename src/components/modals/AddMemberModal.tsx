@@ -9,6 +9,7 @@ import { FilterChip } from '@/components/ui/FilterChip';
 import { Stepper } from '@/components/ui/Stepper';
 import { SmartInput } from '@/components/ui/SmartInput';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import { addMember } from '@/lib/actions';
 import { calcEndDate } from '@/lib/dateUtils';
@@ -23,6 +24,7 @@ type PaymentStatus = 'Fully Paid' | 'Partial' | 'Unpaid';
 
 export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose }) => {
   const { state } = useApp();
+  const { logAction } = useAuth();
   const { showToast } = useToast();
   const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -102,6 +104,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
       dueAmount,
       initialPayment,
     });
+
+    logAction('Added Member', { memberName: name.trim(), initialPayment });
 
     showToast(`${name.trim()} added successfully! 🎉`);
     handleClose();

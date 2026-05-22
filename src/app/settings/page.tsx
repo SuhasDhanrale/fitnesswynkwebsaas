@@ -5,6 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ChangePinModal } from '@/components/modals/ChangePinModal';
 import styles from './page.module.css';
 
 const DEFAULT_PLANS = ['Monthly Cardio', 'Weight Training', 'CrossFit', 'Yearly Pro'];
@@ -22,6 +23,7 @@ export default function Settings() {
   const [newDuration, setNewDuration] = useState('');
   const [enableSmartEntry, setEnableSmartEntry] = useState(state.settings.enableSmartEntry);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [changePinOpen, setChangePinOpen] = useState(false);
 
   const saveProfile = async () => {
     dispatch({ type: 'UPDATE_SETTINGS', payload: { gymName: gymName.trim(), upiId: upiId.trim(), qrCodeUrl: qrPreview, enableSmartEntry } });
@@ -33,7 +35,10 @@ export default function Settings() {
         gym_name: gymName.trim(),
         upi_id: upiId.trim(),
         qr_code_url: qrPreview,
-        enable_smart_entry: enableSmartEntry
+        enable_smart_entry: enableSmartEntry,
+        available_plans: state.settings.availablePlans,
+        batches: state.settings.batches,
+        durations: state.settings.durations
       }).eq('id', 1);
     } catch (e) {
       console.error('Failed to save settings to DB', e);
@@ -42,14 +47,33 @@ export default function Settings() {
     showToast('Gym profile & settings saved! ✓');
   };
 
-  const addItem = (field: 'availablePlans' | 'batches' | 'durations', value: string, setter: (v: string) => void) => {
+  const addItem = async (field: 'availablePlans' | 'batches' | 'durations', value: string, setter: (v: string) => void) => {
     if (!value.trim()) return;
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { [field]: [...state.settings[field], value.trim()] } });
+    const newValue = value.trim();
+    const newArray = [...state.settings[field], newValue];
+    dispatch({ type: 'UPDATE_SETTINGS', payload: { [field]: newArray } });
     setter('');
+
+    try {
+      const { supabase } = await import('@/lib/supabaseClient');
+      const dbField = field === 'availablePlans' ? 'available_plans' : field;
+      await supabase.from('gym_settings').update({ [dbField]: newArray }).eq('id', 1);
+    } catch (e) {
+      console.error(`Failed to save ${field} to DB`, e);
+    }
   };
 
-  const removeItem = (field: 'availablePlans' | 'batches' | 'durations', value: string) => {
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { [field]: state.settings[field].filter(v => v !== value) } });
+  const removeItem = async (field: 'availablePlans' | 'batches' | 'durations', value: string) => {
+    const newArray = state.settings[field].filter(v => v !== value);
+    dispatch({ type: 'UPDATE_SETTINGS', payload: { [field]: newArray } });
+
+    try {
+      const { supabase } = await import('@/lib/supabaseClient');
+      const dbField = field === 'availablePlans' ? 'available_plans' : field;
+      await supabase.from('gym_settings').update({ [dbField]: newArray }).eq('id', 1);
+    } catch (e) {
+      console.error(`Failed to remove ${field} from DB`, e);
+    }
   };
 
   const handleQrChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,8 +85,20 @@ export default function Settings() {
     }
   };
 
-  const resetToDefaults = () => {
+  const resetToDefaults = async () => {
     dispatch({ type: 'UPDATE_SETTINGS', payload: { availablePlans: DEFAULT_PLANS, batches: DEFAULT_BATCHES, durations: DEFAULT_DURATIONS } });
+    
+    try {
+      const { supabase } = await import('@/lib/supabaseClient');
+      await supabase.from('gym_settings').update({
+        available_plans: DEFAULT_PLANS,
+        batches: DEFAULT_BATCHES,
+        durations: DEFAULT_DURATIONS
+      }).eq('id', 1);
+      showToast('Settings reset to defaults! ✓');
+    } catch (e) {
+      console.error('Failed to reset settings in DB', e);
+    }
   };
 
   return (
@@ -162,6 +198,15 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Security */}
+      <div className={styles.card}>
+        <h2 className={styles.cardTitle}>Security</h2>
+        <p className="text-body" style={{ color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+          Manage the shared PIN used to log in to Guddy.
+        </p>
+        <Button variant="dark" onClick={() => setChangePinOpen(true)}>🔒 Change PIN</Button>
+      </div>
+
       {/* Danger Zone */}
       <div className={`${styles.card} ${styles.dangerCard}`}>
         <h2 className={styles.cardTitle} style={{ color: 'var(--color-error)' }}>Danger Zone</h2>
@@ -171,6 +216,8 @@ export default function Settings() {
 
       {/* Version Footer */}
       <p className={styles.version}>FitnessWynk Admin v1.0.0</p>
+
+      <ChangePinModal isOpen={changePinOpen} onClose={() => setChangePinOpen(false)} />
     </div>
   );
 }

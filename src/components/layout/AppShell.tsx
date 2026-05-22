@@ -4,6 +4,8 @@ import React, { ReactNode, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
+import { ProfilePicker } from '@/components/auth/ProfilePicker';
 import { CommandPalette } from '@/components/ui/CommandPalette';
 import styles from './AppShell.module.css';
 import { usePathname } from 'next/navigation';
@@ -29,6 +31,11 @@ export const AppShell: React.FC<AppShellProps> = ({ children, actions }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { state } = useApp();
+  const { currentUser, logout } = useAuth();
+
+  if (!currentUser) {
+    return <ProfilePicker />;
+  }
 
   const title =
     pageTitles[pathname] ??
@@ -47,6 +54,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children, actions }) => {
           title={title}
           actions={actions}
           onMenuClick={() => setSidebarOpen(true)}
+          currentUser={currentUser}
+          onSwitchUser={logout}
         />
         <main key={pathname} className={styles.content}>{children}</main>
       </div>

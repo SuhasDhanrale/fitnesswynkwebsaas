@@ -1,0 +1,176 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: #0a0a0a;
+  border-radius: 20px;
+  padding: 40px 32px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  animation: slideUp 200ms ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.closeBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: #888;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 150ms ease;
+}
+
+.closeBtn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.steps {
+  display: flex;
+  gap: 8px;
+}
+
+.stepDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  transition: background 200ms ease;
+}
+
+.stepActive { background: #FFDE21; }
+.stepDone   { background: #4CAF50; }
+
+.label {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+}
+
+.dotRow {
+  display: flex;
+  gap: 16px;
+}
+
+.dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #444;
+  background: transparent;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.dotFilled {
+  background: #FFDE21;
+  border-color: #FFDE21;
+}
+
+.error {
+  font-size: 12px;
+  color: #ff5252;
+  margin: 0;
+  height: 14px;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-7px); }
+  80% { transform: translateX(7px); }
+}
+
+.shake { animation: shake 0.4s ease; }
+
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.numKey {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease, transform 100ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.numKey:hover  { background: rgba(255,255,255,0.15); }
+.numKey:active { background: #FFDE21; color: #000; transform: scale(0.93); }
+
+.successState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 0;
+}
+
+.successIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #4CAF50;
+  color: #fff;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pop 300ms ease;
+}
+
+@keyframes pop {
+  0%   { transform: scale(0.5); opacity: 0; }
+  70%  { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.successText {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}

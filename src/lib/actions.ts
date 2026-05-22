@@ -118,4 +118,7 @@ export const processPaymentAndRenewal = async (
   queryClient.invalidateQueries({ queryKey: ['member', data.memberId] });
   queryClient.invalidateQueries({ queryKey: ['payments'] });
   queryClient.invalidateQueries({ queryKey: ['payments', data.memberId] });
+  queryClient.invalidateQueries({ queryKey: ['finance_stats'] });
+  queryClient.invalidateQueries({ queryKey: ['finance_summary'] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] });
 };

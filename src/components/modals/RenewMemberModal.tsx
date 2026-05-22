@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { useToast } from '@/components/ui/Toast';
+import { useAuth } from '@/context/AuthContext';
 import { processPaymentAndRenewal } from '@/lib/actions';
 import { calcEndDate } from '@/lib/dateUtils';
 import { Member } from '@/types';
@@ -19,6 +20,7 @@ interface RenewMemberModalProps {
 
 export const RenewMemberModal: React.FC<RenewMemberModalProps> = ({ isOpen, onClose, member }) => {
   const { showToast } = useToast();
+  const { logAction } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
   const [amount, setAmount] = useState('');
   const [payMode, setPayMode] = useState<'Cash' | 'UPI'>('Cash');
@@ -54,6 +56,9 @@ export const RenewMemberModal: React.FC<RenewMemberModalProps> = ({ isOpen, onCl
       endDate: new Date(endDate).getTime(),
       notes: 'Renewal payment',
     });
+    
+    logAction('Renewed Member', { memberName: member.name, amount: Number(amount) });
+    
     showToast(`Membership renewed for ${member.name}! ✓`);
     onClose();
   };

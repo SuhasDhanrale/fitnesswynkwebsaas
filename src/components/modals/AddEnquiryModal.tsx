@@ -21,7 +21,7 @@ export const AddEnquiryModal: React.FC<AddEnquiryModalProps> = ({ isOpen, onClos
   const { showToast } = useToast();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [planOfInterest, setPlanOfInterest] = useState(state.settings.availablePlans[0]);
+  const [planOfInterest, setPlanOfInterest] = useState(state.settings.availablePlans[0] || '');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ReactQueryProvider } from "@/lib/ReactQueryProvider";
@@ -24,9 +25,11 @@ export default function RootLayout({
       <body suppressHydrationWarning className={`${inter.variable} ${outfit.variable}`}>
         <ReactQueryProvider>
           <AppProvider>
-            <ToastProvider>
-              <AppShell>{children}</AppShell>
-            </ToastProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <AppShell>{children}</AppShell>
+              </ToastProvider>
+            </AuthProvider>
           </AppProvider>
         </ReactQueryProvider>
       </body>
