@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServer = createClient(supabaseUrl, supabaseKey);
+
 
 function hashPin(pin: string): string {
   return createHash('sha256').update(pin).digest('hex');
@@ -12,6 +10,9 @@ function hashPin(pin: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseServer = createClient(supabaseUrl, supabaseKey);
     const { currentPin, newPin } = await req.json();
 
     if (

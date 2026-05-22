@@ -4,9 +4,7 @@ import { createHash } from 'node:crypto';
 
 // Server-side client using service-role-equivalent anon key
 // This route runs only on the server — env vars WITHOUT NEXT_PUBLIC_ are never sent to the browser
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServer = createClient(supabaseUrl, supabaseKey);
+
 
 function hashPin(pin: string): string {
   return createHash('sha256').update(pin).digest('hex');
@@ -14,6 +12,9 @@ function hashPin(pin: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseServer = createClient(supabaseUrl, supabaseKey);
     const { pin } = await req.json();
 
     if (!pin || typeof pin !== 'string' || !/^\d{4}$/.test(pin)) {
