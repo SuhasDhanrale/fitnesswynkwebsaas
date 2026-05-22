@@ -104,6 +104,7 @@ export function ChangePinModal({ isOpen, onClose }: ChangePinModalProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, activePin, step, currentPin, newPin, confirmPin]);
 
   if (!isOpen) return null;
