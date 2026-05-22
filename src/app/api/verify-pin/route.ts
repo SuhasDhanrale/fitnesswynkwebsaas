@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
 
 // Server-side client using service-role-equivalent anon key
 // This route runs only on the server — env vars WITHOUT NEXT_PUBLIC_ are never sent to the browser
