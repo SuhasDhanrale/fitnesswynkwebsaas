@@ -8,6 +8,7 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  titleExtra?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   /** When true, overlay click & Escape are blocked. Show a confirm before closing. */
@@ -17,7 +18,7 @@ interface ModalProps {
 }
 
 export const Modal: React.FC<ModalProps> = ({
-  isOpen, onClose, title, children, footer,
+  isOpen, onClose, title, titleExtra, children, footer,
   isDirty = false,
   dirtyMessage = 'You have unsaved changes. Discard and close?',
 }) => {
@@ -88,7 +89,10 @@ export const Modal: React.FC<ModalProps> = ({
         tabIndex={-1}
       >
         <div className={styles.header}>
-          <h2 id="modal-title" className={`text-h2 ${styles.title}`}>{title}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: 0, marginRight: '12px' }}>
+            <h2 id="modal-title" className={`text-h2 ${styles.title}`}>{title}</h2>
+            {titleExtra && <div style={{ flex: 1, minWidth: 0 }}>{titleExtra}</div>}
+          </div>
           <button className={styles.closeButton} onClick={requestClose} aria-label="Close">
             <X size={24} />
           </button>

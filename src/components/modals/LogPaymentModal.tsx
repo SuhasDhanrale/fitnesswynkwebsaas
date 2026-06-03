@@ -105,7 +105,7 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
 
   // ── Member search & select ────────────────────────────────────────────────
   const memberResults = memberSearch.length >= 2
-    ? membersList.filter(m => m.name.toLowerCase().includes(memberSearch.toLowerCase())).slice(0, 5)
+    ? membersList.filter(m => m.name.toLowerCase().includes(memberSearch.toLowerCase())).slice(0, 10)
     : [];
 
   const selectMember = async (id: string) => {
@@ -230,6 +230,7 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
       isOpen={isOpen}
       onClose={onClose}
       title="Log Payment"
+      titleExtra={<div style={{ transform: 'scale(0.85)', transformOrigin: 'right center', marginTop: '-4px' }}><Stepper currentStep={step} totalSteps={3} /></div>}
       isDirty={isDirty}
       dirtyMessage="Payment is not saved yet. Discard and close?"
       footer={
@@ -245,7 +246,6 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
       }
     >
       <div onKeyDown={onKeyDown} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <Stepper currentStep={step} totalSteps={3} />
 
         {/* ── STEP 1: Select Member ── */}
         {step === 1 && (
@@ -274,7 +274,7 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
                 <div style={{
                   position: 'absolute', top: '100%', left: 0, right: 0,
                   background: 'var(--color-surface)', boxShadow: 'var(--shadow-md)',
-                  borderRadius: 'var(--radius-md)', zIndex: 10, overflow: 'hidden'
+                  borderRadius: 'var(--radius-md)', zIndex: 10, overflowY: 'auto', maxHeight: '240px'
                 }}>
                   {memberResults.map(m => (
                     <div
@@ -317,10 +317,25 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
 
         {/* ── STEP 2: Plan & Start Date ── */}
         {step === 2 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', animation: 'pageFadeIn 200ms ease' }}>
-            <Select label="Plan" options={state.settings.availablePlans} value={plan} onChange={e => setPlan(e.target.value)} />
-            <Select label="Batch" options={state.settings.batches} value={batch} onChange={e => setBatch(e.target.value)} />
-            <Select label="Duration" options={state.settings.durations} value={duration} onChange={e => setDuration(e.target.value)} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'pageFadeIn 200ms ease' }}>
+            
+            {/* End date summary (Moved to top) */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              background: 'var(--color-surface-variant)', borderRadius: 'var(--radius-md)', padding: '10px 14px',
+              fontSize: '13px',
+            }}>
+              <span style={{ color: 'var(--color-text-secondary)' }}>Plan period</span>
+              <span style={{ fontWeight: 700 }}>
+                {format(new Date(resolvedStartDate), 'dd MMM yyyy')} → {endDateDisplay}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+              <Select label="Plan" options={state.settings.availablePlans} value={plan} onChange={e => setPlan(e.target.value)} />
+              <Select label="Batch" options={state.settings.batches} value={batch} onChange={e => setBatch(e.target.value)} />
+              <Select label="Duration" options={state.settings.durations} value={duration} onChange={e => setDuration(e.target.value)} />
+            </div>
 
             {/* Start date options — smart based on member status */}
             <div>
@@ -404,17 +419,6 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
               </div>
             </div>
 
-            {/* End date summary */}
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              background: 'var(--color-surface-variant)', borderRadius: 'var(--radius-md)', padding: '10px 14px',
-              fontSize: '13px',
-            }}>
-              <span style={{ color: 'var(--color-text-secondary)' }}>Plan period</span>
-              <span style={{ fontWeight: 700 }}>
-                {format(new Date(resolvedStartDate), 'dd MMM yyyy')} → {endDateDisplay}
-              </span>
-            </div>
           </div>
         )}
 
