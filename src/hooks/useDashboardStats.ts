@@ -5,6 +5,7 @@ export interface DashboardStats {
   active_members: number;
   present_today: number;
   expiring_soon: number;
+  expired_members: number;
   monthly_collection: number;
 }
 

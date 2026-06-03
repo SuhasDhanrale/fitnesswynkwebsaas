@@ -96,12 +96,21 @@ export default function Dashboard() {
 
           <div className={styles.sectionCard}>
             <h3 className={styles.sectionTitle}>Action Required</h3>
-            {stats?.expiring_soon === 0 ? (
-              <EmptyState icon={CheckCircle} title="All clear!" description="No memberships are expiring soon." />
+            {stats?.expiring_soon === 0 && stats?.expired_members === 0 ? (
+              <EmptyState icon={CheckCircle} title="All clear!" description="No memberships need attention." />
             ) : (
-              <Button variant="ghost" onClick={() => router.push('/renewals')}>
-                View {stats?.expiring_soon} expiring members →
-              </Button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
+                {(stats?.expiring_soon ?? 0) > 0 && (
+                  <Button variant="ghost" onClick={() => router.push('/renewals')}>
+                    View {stats?.expiring_soon} expiring members →
+                  </Button>
+                )}
+                {(stats?.expired_members ?? 0) > 0 && (
+                  <Button variant="ghost" onClick={() => router.push('/renewals')}>
+                    View {stats?.expired_members} expired members →
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </div>

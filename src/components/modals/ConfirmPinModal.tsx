@@ -13,7 +13,6 @@ interface ConfirmPinModalProps {
   description?: string;
 }
 
-const ADMIN_PIN = '913291';
 
 export const ConfirmPinModal: React.FC<ConfirmPinModalProps> = ({
   isOpen, onClose, onConfirm,
@@ -23,14 +22,31 @@ export const ConfirmPinModal: React.FC<ConfirmPinModalProps> = ({
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
 
-  const handleConfirm = () => {
-    if (pin === ADMIN_PIN) {
-      setPin('');
-      setError('');
-      onConfirm();
-      onClose();
-    } else {
-      setError('Incorrect PIN. Please try again.');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleConfirm = async () => {
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const res = await fetch('/api/verify-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      });
+      const data = await res.json();
+      
+      if (data.ok) {
+        setPin('');
+        onConfirm();
+        onClose();
+      } else {
+        setError(data.error || 'Incorrect PIN. Please try again.');
+      }
+    } catch (err) {
+      setError('Error verifying PIN.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -47,8 +63,10 @@ export const ConfirmPinModal: React.FC<ConfirmPinModalProps> = ({
       title={title}
       footer={
         <>
-          <Button variant="ghost" onClick={handleClose}>Cancel</Button>
-          <Button variant="danger" onClick={handleConfirm}>Confirm</Button>
+          <Button variant="ghost" onClick={handleClose} disabled={isLoading}>Cancel</Button>
+          <Button variant="danger" onClick={handleConfirm} disabled={isLoading}>
+            {isLoading ? 'Checking...' : 'Confirm'}
+          </Button>
         </>
       }
     >

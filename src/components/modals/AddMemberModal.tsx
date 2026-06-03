@@ -136,6 +136,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
       isOpen={isOpen}
       onClose={handleClose}
       title="Add New Member"
+      titleExtra={<div style={{ width: '100px', marginLeft: 'auto', marginRight: '8px', display: 'flex', alignItems: 'center' }}><Stepper currentStep={step} totalSteps={3} /></div>}
       isDirty={isDirty}
       dirtyMessage="You have started filling this form. Discard changes and close?"
       footer={
@@ -150,7 +151,6 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
       }
     >
       <div onKeyDown={onKeyDown} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <Stepper currentStep={step} totalSteps={3} />
 
         {/* STEP 1: Identity */}
         {step === 1 && (

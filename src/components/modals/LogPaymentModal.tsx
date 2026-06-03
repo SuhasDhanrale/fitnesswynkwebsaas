@@ -230,7 +230,7 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
       isOpen={isOpen}
       onClose={onClose}
       title="Log Payment"
-      titleExtra={<div style={{ transform: 'scale(0.85)', transformOrigin: 'right center', marginTop: '-4px' }}><Stepper currentStep={step} totalSteps={3} /></div>}
+      titleExtra={<div style={{ width: '100px', marginLeft: 'auto', marginRight: '8px', display: 'flex', alignItems: 'center' }}><Stepper currentStep={step} totalSteps={3} /></div>}
       isDirty={isDirty}
       dirtyMessage="Payment is not saved yet. Discard and close?"
       footer={
@@ -331,7 +331,7 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
               </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '12px' }}>
               <Select label="Plan" options={state.settings.availablePlans} value={plan} onChange={e => setPlan(e.target.value)} />
               <Select label="Batch" options={state.settings.batches} value={batch} onChange={e => setBatch(e.target.value)} />
               <Select label="Duration" options={state.settings.durations} value={duration} onChange={e => setDuration(e.target.value)} />
