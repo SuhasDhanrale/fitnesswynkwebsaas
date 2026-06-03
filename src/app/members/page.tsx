@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { UserX, Search } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Button } from '@/components/ui/Button';
@@ -23,6 +24,11 @@ export default function MembersDirectory() {
   const [planFilter, setPlanFilter] = useState('All');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setPortalTarget(document.getElementById('topbar-portal'));
+  }, []);
 
   const { data, isLoading } = useMembers({
     search: searchQuery,
@@ -33,6 +39,20 @@ export default function MembersDirectory() {
   const members = React.useMemo(() => {
     const list = data?.data ?? [];
     return [...list].sort((a, b) => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+
+        const aStarts = aName.startsWith(q);
+        const bStarts = bName.startsWith(q);
+
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+
+        return aName.localeCompare(bName);
+      }
+
       const aDays = daysRemaining(a);
       const bDays = daysRemaining(b);
       
@@ -46,13 +66,17 @@ export default function MembersDirectory() {
       
       return a.name.localeCompare(b.name);
     });
-  }, [data]);
+  }, [data, searchQuery]);
 
-  // Plan stats from members hook (all plans, no filter)
-  const { data: allData } = useMembers({});
+  // Fetch all members (no filter, no pagination) for stats
+  const { data: allData } = useMembers({ pageSize: 9999 });
+
+  const allMembers = allData?.data ?? [];
+  const totalActive = allMembers.filter(m => !isExpired(m)).length;
+  const totalInactive = allMembers.filter(m => isExpired(m)).length;
   const planStats = state.settings.availablePlans.map(plan => ({
     name: plan,
-    count: allData?.data.filter(m => m.planName === plan).length ?? 0,
+    count: allMembers.filter(m => m.planName === plan).length,
   }));
 
   if (isLoading && !data) {
@@ -61,9 +85,6 @@ export default function MembersDirectory() {
         <div className={styles.header}>
           <Skeleton width="300px" height="40px" borderRadius="8px" />
           <Skeleton width="120px" height="40px" borderRadius="8px" />
-        </div>
-        <div className={styles.filters}>
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} width="80px" height="32px" borderRadius="16px" />)}
         </div>
         <div className={styles.planStatsRow}>
           {[1, 2, 3].map(i => <Skeleton key={i} width="120px" height="60px" borderRadius="8px" />)}
@@ -90,18 +111,29 @@ export default function MembersDirectory() {
           <Button variant="primary" icon="UserPlus" onClick={() => setAddMemberOpen(true)}>Add Member</Button>
         </div>
 
-        <div className={styles.filters}>
-          <FilterChip label="All Status" selected={statusFilter === 'All'} onClick={() => setStatusFilter('All')} />
-          <FilterChip label="Active" selected={statusFilter === 'Active'} onClick={() => setStatusFilter('Active')} />
-          <FilterChip label="Expired" selected={statusFilter === 'Expired'} onClick={() => setStatusFilter('Expired')} />
-          <div style={{ width: '1px', background: 'var(--color-border)', margin: '0 8px' }} />
-          <FilterChip label="All Plans" selected={planFilter === 'All'} onClick={() => setPlanFilter('All')} />
-          {state.settings.availablePlans.map(plan => (
-            <FilterChip key={plan} label={plan} selected={planFilter === plan} onClick={() => setPlanFilter(plan)} />
-          ))}
-        </div>
+        {portalTarget && createPortal(
+          <>
+            <FilterChip label="All Status" selected={statusFilter === 'All'} onClick={() => setStatusFilter('All')} />
+            <FilterChip label="Active" selected={statusFilter === 'Active'} onClick={() => setStatusFilter('Active')} />
+            <FilterChip label="Expired" selected={statusFilter === 'Expired'} onClick={() => setStatusFilter('Expired')} />
+            <div style={{ width: '1px', background: 'var(--color-border)', margin: '0 8px', alignSelf: 'stretch', flexShrink: 0 }} />
+            <FilterChip label="All Plans" selected={planFilter === 'All'} onClick={() => setPlanFilter('All')} />
+            {state.settings.availablePlans.map(plan => (
+              <FilterChip key={plan} label={plan} selected={planFilter === plan} onClick={() => setPlanFilter(plan)} />
+            ))}
+          </>,
+          portalTarget
+        )}
 
         <div className={styles.planStatsRow}>
+          <div className={`${styles.planStatCard} ${styles.activeCard}`}>
+            <span className={styles.planStatNameDark}>Total Active</span>
+            <span className={styles.planStatCountActive}>{totalActive}</span>
+          </div>
+          <div className={`${styles.planStatCard} ${styles.inactiveCard}`}>
+            <span className={styles.planStatNameDark}>Total Inactive</span>
+            <span className={styles.planStatCountInactive}>{totalInactive}</span>
+          </div>
           {planStats.map(stat => (
             <div key={stat.name} className={styles.planStatCard}>
               <span className={styles.planStatName}>{stat.name}</span>

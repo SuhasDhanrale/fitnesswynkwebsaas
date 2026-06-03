@@ -20,6 +20,7 @@ export const TopBar: React.FC<TopBarProps> = ({ title, actions, onMenuClick, cur
           <Menu size={24} />
         </button>
         <h1 className={styles.title}>{title}</h1>
+        <div id="topbar-portal" className={styles.titlePortal} />
       </div>
       <div className={styles.right}>
         {actions}

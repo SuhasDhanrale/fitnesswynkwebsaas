@@ -34,12 +34,11 @@ function usePlanDistribution() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('members')
-        .select('plan_name')
-        .gt('expiry_date', Date.now());
+        .select('plan_name');
       if (error) throw error;
       const counts: Record<string, number> = {};
       (data || []).forEach((m: Record<string, unknown>) => {
-        const plan = String(m.plan_name ?? '');
+        const plan = String(m.plan_name ?? '').trim();
         if (plan) counts[plan] = (counts[plan] || 0) + 1;
       });
       return Object.entries(counts)
@@ -202,7 +201,7 @@ export default function InsightsDashboard() {
           <div className={styles.cardHeader}>
             <div>
               <h2 className={styles.cardTitle}>Popular Plans</h2>
-              <p className={styles.cardSub}>Distribution among active members</p>
+              <p className={styles.cardSub}>Distribution across all members</p>
             </div>
           </div>
           <div className={styles.chartContainer}>

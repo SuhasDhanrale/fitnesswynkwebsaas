@@ -60,9 +60,25 @@
   flex-shrink: 0;
 }
 
+.activeCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.inactiveCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
 .planStatName {
   font-size: 14px;
   color: rgba(255,255,255,0.8);
+}
+
+/* Used on active/inactive cards — override default white text */
+.planStatNameDark {
+  font-size: 14px;
+  color: var(--color-text-secondary);
 }
 
 .planStatCount {
@@ -70,6 +86,20 @@
   font-family: var(--font-heading);
   font-weight: 700;
   color: var(--color-primary);
+}
+
+.planStatCountActive {
+  font-size: 24px;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: #10B981;
+}
+
+.planStatCountInactive {
+  font-size: 24px;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--color-error);
 }
 
 .memberList {
