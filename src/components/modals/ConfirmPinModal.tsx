@@ -43,7 +43,7 @@ export const ConfirmPinModal: React.FC<ConfirmPinModalProps> = ({
       } else {
         setError(data.error || 'Incorrect PIN. Please try again.');
       }
-    } catch (err) {
+    } catch {
       setError('Error verifying PIN.');
     } finally {
       setIsLoading(false);
