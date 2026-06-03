@@ -82,7 +82,6 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
   const startMs = new Date(resolvedStartDate).getTime();
   const endMs = calcEndDate(startMs, duration);
   const endDateDisplay = format(endMs, 'dd MMM yyyy');
-  const endDateValue = format(endMs, 'yyyy-MM-dd');
 
   // ── Reset on open ─────────────────────────────────────────────────────────
   useEffect(() => {
