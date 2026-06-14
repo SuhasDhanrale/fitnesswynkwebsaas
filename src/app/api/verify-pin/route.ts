@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { createHash } from 'node:crypto';
+import bcrypt from 'bcrypt';
 import { checkRateLimit } from '@/lib/rateLimit';
-
-// Server-side client using service-role-equivalent anon key
-// This route runs only on the server — env vars WITHOUT NEXT_PUBLIC_ are never sent to the browser
-
-
-function hashPin(pin: string): string {
-  return createHash('sha256').update(pin).digest('hex');
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -51,8 +43,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'PIN record not found' }, { status: 500 });
     }
 
-    const inputHash = hashPin(pin);
-    const correct = inputHash === data.pin;
+    const correct = await bcrypt.compare(pin, data.pin);
 
     // Intentionally return the same shape regardless of outcome to avoid timing leaks
     const headers: Record<string, string> = {

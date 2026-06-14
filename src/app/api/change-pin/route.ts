@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { createHash } from 'node:crypto';
+import bcrypt from 'bcrypt';
 import { checkRateLimit } from '@/lib/rateLimit';
-
-
-
-function hashPin(pin: string): string {
-  return createHash('sha256').update(pin).digest('hex');
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -54,14 +48,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify current PIN
-    if (hashPin(currentPin) !== data.pin) {
+    const isValid = await bcrypt.compare(currentPin, data.pin);
+    if (!isValid) {
       return NextResponse.json({ ok: false, error: 'Current PIN is incorrect' });
     }
 
     // Update with new hashed PIN
+    const newHashedPin = await bcrypt.hash(newPin, 10);
     const { error: updateError } = await supabaseServer
       .from('app_pin')
-      .update({ pin: hashPin(newPin) })
+      .update({ pin: newHashedPin })
       .eq('id', 1);
 
     if (updateError) {
