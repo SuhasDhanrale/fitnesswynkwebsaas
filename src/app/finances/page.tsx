@@ -19,7 +19,7 @@ import styles from './page.module.css';
 
 export default function Finances() {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<'payments' | 'expenses' | 'scheduled'>('payments');
+  const [activeTab, setActiveTab] = useState<'payments' | 'expenses'>('payments');
   const [logPaymentOpen, setLogPaymentOpen] = useState(false);
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
   const [addScheduledExpenseOpen, setAddScheduledExpenseOpen] = useState(false);
@@ -31,7 +31,7 @@ export default function Finances() {
   const { data: statsData, isLoading: statsLoading } = useFinanceStats();
   const { data: paymentsData, isLoading: paymentsLoading } = usePayments(0, 100, paySearch);
   const { data: expensesData, isLoading: expensesLoading } = useExpenses(0, 100, expenseSearch);
-  const { data: scheduledExpensesData, isLoading: scheduledExpensesLoading } = useScheduledExpenses();
+  const { data: scheduledExpensesData } = useScheduledExpenses();
 
   const payments = paymentsData?.data ?? [];
   const expenses = expensesData?.data ?? [];
@@ -79,7 +79,6 @@ export default function Finances() {
         <div className={styles.tabs}>
           <button className={`${styles.tab} ${activeTab === 'payments' ? styles.active : ''}`} onClick={() => setActiveTab('payments')}>Payments</button>
           <button className={`${styles.tab} ${activeTab === 'expenses' ? styles.active : ''}`} onClick={() => setActiveTab('expenses')}>Expenses</button>
-          <button className={`${styles.tab} ${activeTab === 'scheduled' ? styles.active : ''}`} onClick={() => setActiveTab('scheduled')}>Scheduled</button>
         </div>
 
         {activeTab === 'payments' && (
@@ -161,8 +160,41 @@ export default function Finances() {
               </div>
             )}
 
-            <input className={styles.searchInput} placeholder="Search expenses..." value={expenseSearch} onChange={e => setExpenseSearch(e.target.value)} />
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <input className={styles.searchInput} placeholder="Search expenses..." value={expenseSearch} onChange={e => setExpenseSearch(e.target.value)} style={{ flex: 1, margin: 0 }} />
+            </div>
 
+            {scheduledExpenses.length > 0 && (
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '1rem', color: 'var(--color-text)', marginBottom: '12px' }}>Scheduled & Recurring</h3>
+                <div className={styles.list}>
+                  {scheduledExpenses.map(e => (
+                    <div key={e.id} className={styles.expenseCard} style={{ borderLeft: '3px solid var(--color-primary)' }}>
+                      <div style={{ flex: 1 }}>
+                        <div className={styles.rowMain}>{e.title}</div>
+                        <div className={styles.rowSub}>
+                          {e.frequency.charAt(0).toUpperCase() + e.frequency.slice(1)} 
+                          {' · '} Next due: {format(e.next_due_date, 'dd MMM yyyy')}
+                          {e.notes && ` · ${e.notes}`}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span className={styles.expenseAmount}>₹{e.amount.toLocaleString('en-IN')}</span>
+                        <button
+                          onClick={() => handleDeleteScheduled(e.id)}
+                          className={`${styles.deleteBtn} ${deleteConfirmIds.has(e.id) ? styles.confirmDelete : ''}`}
+                          title={deleteConfirmIds.has(e.id) ? 'Tap again to confirm' : 'Delete'}
+                        >
+                          {deleteConfirmIds.has(e.id) ? 'Sure?' : <Trash2 size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <h3 style={{ fontSize: '1rem', color: 'var(--color-text)', marginBottom: '12px' }}>Expense History</h3>
             {expensesLoading ? (
               <div className={styles.list}>
                 {[1, 2, 3].map(i => <Skeleton key={i} height="60px" style={{ marginBottom: '8px' }} borderRadius="8px" />)}
@@ -192,54 +224,10 @@ export default function Finances() {
               </div>
             )}
 
-            <Button variant="primary" icon="Plus" onClick={() => setAddExpenseOpen(true)}>Add Expense</Button>
-          </div>
-        )}
-
-        {activeTab === 'scheduled' && (
-          <div className={styles.tabContent}>
-            <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--color-surface-variant)', borderRadius: '8px' }}>
-              <h3 style={{ margin: '0 0 8px 0', fontSize: '1rem', color: 'var(--color-text)' }}>How it works</h3>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
-                Scheduled expenses are automatically recorded into your standard Expenses log on their due date. 
-                Perfect for predictable, recurring costs like rent or software subscriptions.
-              </p>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+              <Button variant="primary" icon="Plus" onClick={() => setAddExpenseOpen(true)}>Add Expense</Button>
+              <Button variant="outline" onClick={() => setAddScheduledExpenseOpen(true)}>Add Scheduled Expense</Button>
             </div>
-
-            {scheduledExpensesLoading ? (
-              <div className={styles.list}>
-                {[1, 2].map(i => <Skeleton key={i} height="60px" style={{ marginBottom: '8px' }} borderRadius="8px" />)}
-              </div>
-            ) : scheduledExpenses.length === 0 ? (
-              <EmptyState icon={Receipt} title="No scheduled expenses" description="Add a recurring expense to automate your bookkeeping." />
-            ) : (
-              <div className={styles.list}>
-                {scheduledExpenses.map(e => (
-                  <div key={e.id} className={styles.expenseCard}>
-                    <div style={{ flex: 1 }}>
-                      <div className={styles.rowMain}>{e.title}</div>
-                      <div className={styles.rowSub}>
-                        {e.frequency.charAt(0).toUpperCase() + e.frequency.slice(1)} 
-                        {' · '} Next due: {format(e.next_due_date, 'dd MMM yyyy')}
-                        {e.notes && ` · ${e.notes}`}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span className={styles.expenseAmount}>₹{e.amount.toLocaleString('en-IN')}</span>
-                      <button
-                        onClick={() => handleDeleteScheduled(e.id)}
-                        className={`${styles.deleteBtn} ${deleteConfirmIds.has(e.id) ? styles.confirmDelete : ''}`}
-                        title={deleteConfirmIds.has(e.id) ? 'Tap again to confirm' : 'Delete'}
-                      >
-                        {deleteConfirmIds.has(e.id) ? 'Sure?' : <Trash2 size={16} />}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <Button variant="primary" icon="Plus" onClick={() => setAddScheduledExpenseOpen(true)}>Add Scheduled Expense</Button>
           </div>
         )}
       </div>
