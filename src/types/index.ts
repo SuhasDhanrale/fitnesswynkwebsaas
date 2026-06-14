@@ -25,6 +25,7 @@ export interface Payment {
   endDate: number;
   notes: string;
   timestamp: number;     // epoch ms
+  isEdited?: boolean;
 }
 
 // Attendance (from Attendance.kt)

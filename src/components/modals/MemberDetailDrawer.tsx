@@ -82,6 +82,7 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
         endDate: Number(p.end_date),
         notes: (p.notes as string) || '',
         timestamp: Number(p.timestamp),
+        isEdited: (p.is_edited as boolean) ?? false,
       }));
     },
     enabled: !!memberId,

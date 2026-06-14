@@ -50,6 +50,7 @@ async function fetchPayments(page: number, pageSize: number, search: string): Pr
     endDate: Number(p.end_date),
     notes: (p.notes as string) || '',
     timestamp: Number(p.timestamp),
+    isEdited: (p.is_edited as boolean) ?? false,
   }));
 
   return { data: mapped, count: count ?? 0 };
