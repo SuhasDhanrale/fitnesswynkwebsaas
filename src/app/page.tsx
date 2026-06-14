@@ -12,7 +12,7 @@ import { AddMemberModal } from '@/components/modals/AddMemberModal';
 import { LogPaymentModal } from '@/components/modals/LogPaymentModal';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { usePayments } from '@/hooks/useFinanceData';
-import { queryClient } from '@/lib/queryClient';
+
 import styles from './page.module.css';
 import { useState } from 'react';
 
@@ -116,8 +116,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <AddMemberModal isOpen={addMemberOpen} onClose={() => { setAddMemberOpen(false); queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] }); queryClient.invalidateQueries({ queryKey: ['members'] }); }} />
-      <LogPaymentModal isOpen={logPaymentOpen} onClose={() => { setLogPaymentOpen(false); queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] }); queryClient.invalidateQueries({ queryKey: ['payments'] }); }} />
+      <AddMemberModal isOpen={addMemberOpen} onClose={() => setAddMemberOpen(false)} />
+      <LogPaymentModal isOpen={logPaymentOpen} onClose={() => setLogPaymentOpen(false)} />
     </>
   );
 }

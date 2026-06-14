@@ -56,7 +56,7 @@ export const AddEnquiryModal: React.FC<AddEnquiryModalProps> = ({ isOpen, onClos
       return;
     }
 
-    queryClient.invalidateQueries({ queryKey: ['enquiries'] });
+    await queryClient.invalidateQueries({ queryKey: ['enquiries'] });
     showToast(`Enquiry for ${name.trim()} added! ✓`);
     setName(''); setPhone(''); setLocation(''); setSource('Select Source (Optional)'); setNotes(''); setErrors({});
     onClose();

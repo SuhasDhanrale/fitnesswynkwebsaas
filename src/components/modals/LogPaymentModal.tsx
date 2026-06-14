@@ -236,12 +236,16 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
       }).eq('id', selectedMemberId);
 
       // Invalidate caches
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-      queryClient.invalidateQueries({ queryKey: ['members_list'] });
-      queryClient.invalidateQueries({ queryKey: ['member', selectedMemberId] });
-      queryClient.invalidateQueries({ queryKey: ['payments', selectedMemberId] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['members'] }),
+        queryClient.invalidateQueries({ queryKey: ['members_list'] }),
+        queryClient.invalidateQueries({ queryKey: ['member', selectedMemberId] }),
+        queryClient.invalidateQueries({ queryKey: ['payments', selectedMemberId] }),
+        queryClient.invalidateQueries({ queryKey: ['payments'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] }),
+        queryClient.invalidateQueries({ queryKey: ['finance_stats'] }),
+        queryClient.invalidateQueries({ queryKey: ['finance_summary'] })
+      ]);
 
       const msg = payStatus === 'Not Paid Yet'
         ? `Plan started for ${memberName}. Due: ₹${dueAmount}. ✓`

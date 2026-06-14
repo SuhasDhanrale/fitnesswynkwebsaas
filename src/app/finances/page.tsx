@@ -51,13 +51,7 @@ export default function Finances() {
     }
   };
 
-  const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['payments'] });
-    queryClient.invalidateQueries({ queryKey: ['expenses'] });
-    queryClient.invalidateQueries({ queryKey: ['finance_stats'] });
-    queryClient.invalidateQueries({ queryKey: ['finance_summary'] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] });
-  };
+
 
   return (
     <>
@@ -182,8 +176,8 @@ export default function Finances() {
         )}
       </div>
 
-      <LogPaymentModal isOpen={logPaymentOpen} onClose={() => { setLogPaymentOpen(false); invalidateAll(); }} />
-      <AddExpenseModal isOpen={addExpenseOpen} onClose={() => { setAddExpenseOpen(false); invalidateAll(); }} />
+      <LogPaymentModal isOpen={logPaymentOpen} onClose={() => setLogPaymentOpen(false)} />
+      <AddExpenseModal isOpen={addExpenseOpen} onClose={() => setAddExpenseOpen(false)} />
       <PaymentDetailModal isOpen={!!selectedPayment} onClose={() => setSelectedPayment(null)} payment={selectedPayment} />
     </>
   );

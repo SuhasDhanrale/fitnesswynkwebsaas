@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { processPaymentAndRenewal } from '@/lib/actions';
 import { calcEndDate } from '@/lib/dateUtils';
 import { Member } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface RenewMemberModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface RenewMemberModalProps {
 export const RenewMemberModal: React.FC<RenewMemberModalProps> = ({ isOpen, onClose, member }) => {
   const { showToast } = useToast();
   const { logAction } = useAuth();
+  const queryClient = useQueryClient();
   const today = format(new Date(), 'yyyy-MM-dd');
   const [amount, setAmount] = useState('');
   const [payMode, setPayMode] = useState<'Cash' | 'UPI'>('Cash');
@@ -42,10 +44,10 @@ export const RenewMemberModal: React.FC<RenewMemberModalProps> = ({ isOpen, onCl
     setEndDate(format(ms, 'yyyy-MM-dd'));
   }, [startDate, member.durationLabel]);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!amount || Number(amount) <= 0) { setError('Amount is required.'); return; }
 
-    processPaymentAndRenewal({
+    const result = await processPaymentAndRenewal({
       memberId: member.id,
       memberName: member.name,
       amount: Number(amount),
@@ -56,9 +58,25 @@ export const RenewMemberModal: React.FC<RenewMemberModalProps> = ({ isOpen, onCl
       endDate: new Date(endDate).getTime(),
       notes: 'Renewal payment',
     });
+
+    if (result && result.error) {
+      showToast(`Failed to renew: ${result.error}`, 'error');
+      return;
+    }
     
     logAction('Renewed Member', { memberName: member.name, amount: Number(amount) });
     
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['members'] }),
+      queryClient.invalidateQueries({ queryKey: ['members_list'] }),
+      queryClient.invalidateQueries({ queryKey: ['member', member.id] }),
+      queryClient.invalidateQueries({ queryKey: ['payments', member.id] }),
+      queryClient.invalidateQueries({ queryKey: ['payments'] }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] }),
+      queryClient.invalidateQueries({ queryKey: ['finance_stats'] }),
+      queryClient.invalidateQueries({ queryKey: ['finance_summary'] })
+    ]);
+
     showToast(`Membership renewed for ${member.name}! ✓`);
     onClose();
   };

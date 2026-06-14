@@ -84,9 +84,11 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, 
 
       if (result.error) throw new Error(result.error);
 
-      queryClient.invalidateQueries({ queryKey: ['finances'] });
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-      queryClient.invalidateQueries({ queryKey: ['member-payments'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['finances'] }),
+        queryClient.invalidateQueries({ queryKey: ['members'] }),
+        queryClient.invalidateQueries({ queryKey: ['member-payments'] })
+      ]);
       
       showToast('Payment amount corrected successfully');
       onClose();

@@ -116,8 +116,10 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
     
     logAction('Deleted Member', { memberName: member.name });
     
-    queryClient.invalidateQueries({ queryKey: ['members'] });
-    queryClient.invalidateQueries({ queryKey: ['members_list'] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['members'] }),
+      queryClient.invalidateQueries({ queryKey: ['members_list'] })
+    ]);
     queryClient.removeQueries({ queryKey: ['member', memberId] });
     onClose();
   };

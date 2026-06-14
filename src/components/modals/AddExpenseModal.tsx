@@ -37,9 +37,11 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClos
       return;
     }
 
-    queryClient.invalidateQueries({ queryKey: ['expenses'] });
-    queryClient.invalidateQueries({ queryKey: ['finance_stats'] });
-    queryClient.invalidateQueries({ queryKey: ['finance_summary'] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['expenses'] }),
+      queryClient.invalidateQueries({ queryKey: ['finance_stats'] }),
+      queryClient.invalidateQueries({ queryKey: ['finance_summary'] })
+    ]);
 
     showToast(`Expense "${title.trim()}" added! ✓`);
     setTitle(''); setAmount(''); setNotes(''); setErrors({});

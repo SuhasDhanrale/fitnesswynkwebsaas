@@ -1,5 +1,7 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
@@ -28,6 +30,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
   const { state } = useApp();
   const { logAction } = useAuth();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const { data: membersList = [] } = useMembersList();
   const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -154,6 +157,11 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
         showToast(`Failed to save: ${result.error}`);
       } else {
         logAction('Added Member', { memberName: name.trim(), totalReceived });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['members'] }),
+          queryClient.invalidateQueries({ queryKey: ['members_list'] }),
+          queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] })
+        ]);
         showToast(`${name.trim()} added successfully! 🎉`);
         handleClose();
       }

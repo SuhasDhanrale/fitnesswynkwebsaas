@@ -83,9 +83,11 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({ isOpen, onClos
       return;
     }
 
-    queryClient.invalidateQueries({ queryKey: ['members'] });
-    queryClient.invalidateQueries({ queryKey: ['members_list'] });
-    queryClient.invalidateQueries({ queryKey: ['member', member.id] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['members'] }),
+      queryClient.invalidateQueries({ queryKey: ['members_list'] }),
+      queryClient.invalidateQueries({ queryKey: ['member', member.id] })
+    ]);
 
     showToast('Member updated successfully!');
     setPinModalOpen(false);

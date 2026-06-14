@@ -14,7 +14,7 @@ import { MemberDetailDrawer } from '@/components/modals/MemberDetailDrawer';
 import { AddMemberModal } from '@/components/modals/AddMemberModal';
 import { useMembers } from '@/hooks/useMembers';
 import { isExpired, daysRemaining } from '@/lib/dateUtils';
-import { queryClient } from '@/lib/queryClient';
+
 import styles from './page.module.css';
 
 export default function MembersDirectory() {
@@ -216,7 +216,7 @@ export default function MembersDirectory() {
       </div>
 
       <MemberDetailDrawer memberId={selectedMemberId} onClose={() => setSelectedMemberId(null)} />
-      <AddMemberModal isOpen={addMemberOpen} onClose={() => { setAddMemberOpen(false); queryClient.invalidateQueries({ queryKey: ['members'] }); queryClient.invalidateQueries({ queryKey: ['members_list'] }); queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] }); }} />
+      <AddMemberModal isOpen={addMemberOpen} onClose={() => setAddMemberOpen(false)} />
     </>
   );
 }
