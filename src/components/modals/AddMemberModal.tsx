@@ -14,6 +14,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useMembersList } from '@/hooks/useMembers';
 import { addMember } from '@/lib/actions';
 import { calcEndDate } from '@/lib/dateUtils';
+import { getMaxExpectedPrice } from '@/lib/pricingUtils';
 import { format } from 'date-fns';
 
 interface AddMemberModalProps {
@@ -112,6 +113,12 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
         : payStatus === 'Fully Paid' || payStatus === 'Partial'
           ? Number(payingNow)
           : 0;
+
+    const currentMaxEntered = Math.max(Number(totalFee) || 0, totalReceived);
+    if (currentMaxEntered > 150000) {
+      showToast('❌ Amount exceeds maximum limit (₹1,50,000). Please check your entry.');
+      return;
+    }
 
     const dueAmount =
       payStatus === 'Partial' ? (Number(totalFee) - totalReceived) :
@@ -319,6 +326,25 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
                   Total Received: <strong style={{ color: 'var(--color-text)' }}>₹{(Number(cashAmount) || 0) + (Number(upiAmount) || 0)}</strong>
                 </p>
               )}
+
+              {/* Sanity Check Warning */}
+              {(() => {
+                const totalReceived = payMode === 'Split' ? (Number(cashAmount) || 0) + (Number(upiAmount) || 0) : (Number(payingNow) || 0);
+                const currentMaxEntered = Math.max(Number(totalFee) || 0, totalReceived);
+                const maxExpected = getMaxExpectedPrice(duration);
+                if (currentMaxEntered > maxExpected && currentMaxEntered <= 150000) {
+                  return (
+                    <div style={{ fontSize: '13px', color: '#b45309', background: 'rgba(245,158,11,0.1)', padding: '10px 12px', borderRadius: 'var(--radius-md)', display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <span style={{ fontSize: '16px' }}>⚠️</span>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <strong>Unusually high amount</strong>
+                        <span>Expected max for {duration} is roughly ₹{maxExpected.toLocaleString('en-IN')}. Please double-check for extra zeros.</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
 
             <textarea

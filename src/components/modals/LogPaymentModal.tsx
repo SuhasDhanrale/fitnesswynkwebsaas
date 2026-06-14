@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/Toast';
 import { supabase } from '@/lib/supabaseClient';
 import { queryClient } from '@/lib/queryClient';
 import { calcEndDate } from '@/lib/dateUtils';
+import { getMaxExpectedPrice } from '@/lib/pricingUtils';
 import { v4 as uuidv4 } from 'uuid';
 
 interface LogPaymentModalProps {
@@ -179,6 +180,14 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
       const planFee = payStatus === 'Partial' ? Number(totalFee)
         : payStatus === 'Not Paid Yet' ? Number(totalFee)
         : totalPaid;
+
+      const currentMaxEntered = Math.max(planFee || 0, totalPaid || 0);
+      if (currentMaxEntered > 150000) {
+        showToast('❌ Amount exceeds maximum limit (₹1,50,000). Please check your entry.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const dueAmount = payStatus === 'Partial' ? planFee - totalPaid
         : payStatus === 'Not Paid Yet' ? planFee
         : 0;
@@ -534,6 +543,26 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
                   Total Received: <strong style={{ color: 'var(--color-text)' }}>₹{(Number(cashAmount) || 0) + (Number(upiAmount) || 0)}</strong>
                 </p>
               )}
+
+              {/* Sanity Check Warning */}
+              {(() => {
+                const totalPaid = payStatus === 'Not Paid Yet' ? 0 : payMode === 'Split' ? (Number(cashAmount) || 0) + (Number(upiAmount) || 0) : (Number(payingNow) || 0);
+                const currentPlanFee = payStatus === 'Partial' || payStatus === 'Not Paid Yet' ? (Number(totalFee) || 0) : totalPaid;
+                const currentMaxEntered = Math.max(currentPlanFee, totalPaid);
+                const maxExpected = getMaxExpectedPrice(duration);
+                if (currentMaxEntered > maxExpected && currentMaxEntered <= 150000) {
+                  return (
+                    <div style={{ fontSize: '13px', color: '#b45309', background: 'rgba(245,158,11,0.1)', padding: '10px 12px', borderRadius: 'var(--radius-md)', display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <span style={{ fontSize: '16px' }}>⚠️</span>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <strong>Unusually high amount</strong>
+                        <span>Expected max for {duration} is roughly ₹{maxExpected.toLocaleString('en-IN')}. Please double-check for extra zeros.</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
 
             <textarea
