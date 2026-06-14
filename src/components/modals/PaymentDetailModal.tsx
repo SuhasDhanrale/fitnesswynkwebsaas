@@ -95,6 +95,7 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, 
 
       queryClient.invalidateQueries({ queryKey: ['finances'] });
       queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['member-payments'] });
       
       showToast('Payment amount corrected successfully');
       onClose();
