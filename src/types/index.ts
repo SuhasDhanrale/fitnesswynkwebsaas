@@ -47,6 +47,17 @@ export interface Expense {
   category: string;      // "General" default
 }
 
+export interface ScheduledExpense {
+  id: string;
+  title: string;
+  amount: number;
+  category: string;
+  frequency: string;
+  notes: string;
+  next_due_date: number; // epoch ms
+  active: boolean;
+}
+
 // Enquiry (from Enquiry data class)
 export interface Enquiry {
   id: string;

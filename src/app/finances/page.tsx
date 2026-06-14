@@ -9,18 +9,20 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { LogPaymentModal } from '@/components/modals/LogPaymentModal';
 import { PaymentDetailModal } from '@/components/modals/PaymentDetailModal';
 import { AddExpenseModal } from '@/components/modals/AddExpenseModal';
-import { usePayments, useExpenses, useFinanceStats } from '@/hooks/useFinanceData';
+import { AddScheduledExpenseModal } from '@/components/modals/AddScheduledExpenseModal';
+import { usePayments, useExpenses, useFinanceStats, useScheduledExpenses } from '@/hooks/useFinanceData';
+import { deleteExpense, deleteScheduledExpense } from '@/lib/actions';
 import { Payment } from '@/types';
-import { supabase } from '@/lib/supabaseClient';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/components/ui/Toast';
 import styles from './page.module.css';
 
 export default function Finances() {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<'payments' | 'expenses'>('payments');
+  const [activeTab, setActiveTab] = useState<'payments' | 'expenses' | 'scheduled'>('payments');
   const [logPaymentOpen, setLogPaymentOpen] = useState(false);
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
+  const [addScheduledExpenseOpen, setAddScheduledExpenseOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [paySearch, setPaySearch] = useState('');
   const [expenseSearch, setExpenseSearch] = useState('');
@@ -29,20 +31,38 @@ export default function Finances() {
   const { data: statsData, isLoading: statsLoading } = useFinanceStats();
   const { data: paymentsData, isLoading: paymentsLoading } = usePayments(0, 100, paySearch);
   const { data: expensesData, isLoading: expensesLoading } = useExpenses(0, 100, expenseSearch);
+  const { data: scheduledExpensesData, isLoading: scheduledExpensesLoading } = useScheduledExpenses();
 
   const payments = paymentsData?.data ?? [];
   const expenses = expensesData?.data ?? [];
+  const scheduledExpenses = scheduledExpensesData ?? [];
 
   const handleDeleteExpense = async (id: string) => {
     if (deleteConfirmIds.has(id)) {
-      const { error } = await supabase.from('expenses').delete().eq('id', id);
-      if (error) {
-        showToast('Failed to delete expense', 'error');
+      const result = await deleteExpense(id);
+      if (result.error) {
+        showToast('Failed to delete expense: ' + result.error, 'error');
       } else {
         showToast('Expense deleted', 'success');
         queryClient.invalidateQueries({ queryKey: ['expenses'] });
         queryClient.invalidateQueries({ queryKey: ['finance_stats'] });
         queryClient.invalidateQueries({ queryKey: ['finance_summary'] });
+      }
+      setDeleteConfirmIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+    } else {
+      setDeleteConfirmIds(prev => new Set(prev).add(id));
+      setTimeout(() => setDeleteConfirmIds(prev => { const s = new Set(prev); s.delete(id); return s; }), 3000);
+    }
+  };
+
+  const handleDeleteScheduled = async (id: string) => {
+    if (deleteConfirmIds.has(id)) {
+      const result = await deleteScheduledExpense(id);
+      if (result.error) {
+        showToast('Failed to delete scheduled expense: ' + result.error, 'error');
+      } else {
+        showToast('Scheduled expense deleted', 'success');
+        queryClient.invalidateQueries({ queryKey: ['scheduled_expenses'] });
       }
       setDeleteConfirmIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     } else {
@@ -59,6 +79,7 @@ export default function Finances() {
         <div className={styles.tabs}>
           <button className={`${styles.tab} ${activeTab === 'payments' ? styles.active : ''}`} onClick={() => setActiveTab('payments')}>Payments</button>
           <button className={`${styles.tab} ${activeTab === 'expenses' ? styles.active : ''}`} onClick={() => setActiveTab('expenses')}>Expenses</button>
+          <button className={`${styles.tab} ${activeTab === 'scheduled' ? styles.active : ''}`} onClick={() => setActiveTab('scheduled')}>Scheduled</button>
         </div>
 
         {activeTab === 'payments' && (
@@ -174,10 +195,58 @@ export default function Finances() {
             <Button variant="primary" icon="Plus" onClick={() => setAddExpenseOpen(true)}>Add Expense</Button>
           </div>
         )}
+
+        {activeTab === 'scheduled' && (
+          <div className={styles.tabContent}>
+            <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--color-surface-variant)', borderRadius: '8px' }}>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '1rem', color: 'var(--color-text)' }}>How it works</h3>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
+                Scheduled expenses are automatically recorded into your standard Expenses log on their due date. 
+                Perfect for predictable, recurring costs like rent or software subscriptions.
+              </p>
+            </div>
+
+            {scheduledExpensesLoading ? (
+              <div className={styles.list}>
+                {[1, 2].map(i => <Skeleton key={i} height="60px" style={{ marginBottom: '8px' }} borderRadius="8px" />)}
+              </div>
+            ) : scheduledExpenses.length === 0 ? (
+              <EmptyState icon={Receipt} title="No scheduled expenses" description="Add a recurring expense to automate your bookkeeping." />
+            ) : (
+              <div className={styles.list}>
+                {scheduledExpenses.map(e => (
+                  <div key={e.id} className={styles.expenseCard}>
+                    <div style={{ flex: 1 }}>
+                      <div className={styles.rowMain}>{e.title}</div>
+                      <div className={styles.rowSub}>
+                        {e.frequency.charAt(0).toUpperCase() + e.frequency.slice(1)} 
+                        {' · '} Next due: {format(e.next_due_date, 'dd MMM yyyy')}
+                        {e.notes && ` · ${e.notes}`}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span className={styles.expenseAmount}>₹{e.amount.toLocaleString('en-IN')}</span>
+                      <button
+                        onClick={() => handleDeleteScheduled(e.id)}
+                        className={`${styles.deleteBtn} ${deleteConfirmIds.has(e.id) ? styles.confirmDelete : ''}`}
+                        title={deleteConfirmIds.has(e.id) ? 'Tap again to confirm' : 'Delete'}
+                      >
+                        {deleteConfirmIds.has(e.id) ? 'Sure?' : <Trash2 size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Button variant="primary" icon="Plus" onClick={() => setAddScheduledExpenseOpen(true)}>Add Scheduled Expense</Button>
+          </div>
+        )}
       </div>
 
       <LogPaymentModal isOpen={logPaymentOpen} onClose={() => setLogPaymentOpen(false)} />
       <AddExpenseModal isOpen={addExpenseOpen} onClose={() => setAddExpenseOpen(false)} />
+      <AddScheduledExpenseModal isOpen={addScheduledExpenseOpen} onClose={() => setAddScheduledExpenseOpen(false)} />
       <PaymentDetailModal isOpen={!!selectedPayment} onClose={() => setSelectedPayment(null)} payment={selectedPayment} />
     </>
   );

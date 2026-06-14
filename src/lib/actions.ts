@@ -247,6 +247,43 @@ export async function addExpense(data: {
   return ok();
 }
 
+export async function deleteExpense(id: string) {
+  const { error } = await supabaseServer.from('expenses').delete().eq('id', id);
+  if (error) return err(error.message);
+  return ok();
+}
+
+// ─── SCHEDULED EXPENSES ──────────────────────────────────────────────────────
+
+export async function addScheduledExpense(data: {
+  title: string;
+  amount: number;
+  category: string;
+  frequency: string;
+  notes: string;
+  next_due_date: number;
+}) {
+  const { error } = await supabaseServer.from('scheduled_expenses').insert({
+    id: uuidv4(),
+    title: data.title,
+    amount: data.amount,
+    category: data.category,
+    frequency: data.frequency,
+    notes: data.notes,
+    next_due_date: data.next_due_date,
+    active: true
+  });
+
+  if (error) return err(error.message);
+  return ok();
+}
+
+export async function deleteScheduledExpense(id: string) {
+  const { error } = await supabaseServer.from('scheduled_expenses').delete().eq('id', id);
+  if (error) return err(error.message);
+  return ok();
+}
+
 // ─── TASKS ───────────────────────────────────────────────────────────────────
 
 export async function createTask(data: {

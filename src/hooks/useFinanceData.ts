@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
-import { Payment, Expense } from '@/types';
+import { Payment, Expense, ScheduledExpense } from '@/types';
 
 // Monthly summary from RPC for Insights charts
 export interface FinanceSummaryMonth {
@@ -119,5 +119,33 @@ export function useExpenses(page = 0, pageSize = 50, search = '') {
     queryKey: ['expenses', page, pageSize, search],
     queryFn: () => fetchExpenses(page, pageSize, search),
     placeholderData: (prev) => prev,
+  });
+}
+
+// Scheduled Expenses
+async function fetchScheduledExpenses(): Promise<ScheduledExpense[]> {
+  const { data, error } = await supabase
+    .from('scheduled_expenses')
+    .select('*')
+    .order('next_due_date', { ascending: true });
+
+  if (error) throw error;
+
+  return (data || []).map((e: Record<string, unknown>) => ({
+    id: e.id as string,
+    title: e.title as string,
+    amount: Number(e.amount),
+    category: e.category as string,
+    frequency: e.frequency as string,
+    notes: e.notes as string,
+    next_due_date: Number(e.next_due_date),
+    active: e.active as boolean,
+  }));
+}
+
+export function useScheduledExpenses() {
+  return useQuery({
+    queryKey: ['scheduled_expenses'],
+    queryFn: fetchScheduledExpenses,
   });
 }
