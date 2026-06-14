@@ -56,11 +56,14 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
   const [payStatus, setPayStatus] = useState<PaymentStatus>('Fully Paid');
   const [totalFee, setTotalFee] = useState('');
   const [payingNow, setPayingNow] = useState('');
-  const [payMode, setPayMode] = useState<'Cash' | 'UPI'>('Cash');
+  const [payMode, setPayMode] = useState<'Cash' | 'UPI' | 'Split'>('Cash');
+  const [cashAmount, setCashAmount] = useState('');
+  const [upiAmount, setUpiAmount] = useState('');
   const [notes, setNotes] = useState('');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   // Determine whether member is active, expired, or has a gap
@@ -96,6 +99,7 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
       setCustomStartDate(today);
       setPayStatus('Fully Paid');
       setTotalFee(''); setPayingNow('');
+      setCashAmount(''); setUpiAmount('');
       setPayMode('Cash'); setNotes('');
       setErrors({});
       setShowDropdown(false);
@@ -151,68 +155,96 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
   const handleConfirm = async () => {
     const errs: Record<string, string> = {};
     if (!selectedMemberId) { errs.member = 'Please select a valid member.'; }
-    if (payStatus !== 'Not Paid Yet' && (!payingNow || Number(payingNow) <= 0)) {
-      errs.amount = 'Enter the amount being paid.';
+
+    if (payStatus !== 'Not Paid Yet') {
+      if (payMode === 'Split') {
+        const splitTotal = Number(cashAmount) + Number(upiAmount);
+        if (splitTotal <= 0) errs.amount = 'Enter at least one split amount (Cash or UPI).';
+      } else if (!payingNow || Number(payingNow) <= 0) {
+        errs.amount = 'Enter the amount being paid.';
+      }
     }
     if (payStatus === 'Partial' && (!totalFee || Number(totalFee) <= 0)) {
       errs.totalFee = 'Enter the total plan fee.';
     }
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
-    const amountPaid = payStatus === 'Not Paid Yet' ? 0 : Number(payingNow);
-    const planFee = payStatus === 'Partial' ? Number(totalFee) : payStatus === 'Not Paid Yet' ? Number(totalFee) : amountPaid;
-    const dueAmount = payStatus === 'Partial' ? planFee - amountPaid
-      : payStatus === 'Not Paid Yet' ? planFee
-      : 0;
+    setIsSubmitting(true);
+    try {
+      // Compute total amount paid across all modes
+      const totalPaid = payStatus === 'Not Paid Yet' ? 0
+        : payMode === 'Split' ? Number(cashAmount) + Number(upiAmount)
+        : Number(payingNow);
 
-    const selectedMember = membersList.find(m => m.id === selectedMemberId);
-    const memberName = selectedMember?.name ?? 'Unknown';
-    const paymentId = uuidv4();
-    const timestamp = Date.now();
+      const planFee = payStatus === 'Partial' ? Number(totalFee)
+        : payStatus === 'Not Paid Yet' ? Number(totalFee)
+        : totalPaid;
+      const dueAmount = payStatus === 'Partial' ? planFee - totalPaid
+        : payStatus === 'Not Paid Yet' ? planFee
+        : 0;
 
-    // Insert payment record
-    const { error: payError } = await supabase.from('payments').insert({
-      id: paymentId,
-      member_id: selectedMemberId,
-      member_name: memberName,
-      amount: amountPaid,
-      payment_mode: payMode,
-      plan_name: plan,
-      batch,
-      start_date: startMs,
-      end_date: endMs,
-      notes: notes.trim(),
-      timestamp,
-    });
+      const selectedMember = membersList.find(m => m.id === selectedMemberId);
+      const memberName = selectedMember?.name ?? 'Unknown';
+      const timestamp = Date.now();
 
-    if (payError) {
-      showToast('Failed to save payment. Please try again.');
-      return;
+      // Build payment rows — one per mode, or two if split
+      const baseRow = {
+        member_id: selectedMemberId,
+        member_name: memberName,
+        plan_name: plan,
+        batch,
+        start_date: startMs,
+        end_date: endMs,
+        notes: notes.trim(),
+        timestamp,
+      };
+
+      let paymentRows: object[];
+      if (payMode === 'Split') {
+        paymentRows = [
+          ...(Number(cashAmount) > 0 ? [{ ...baseRow, id: uuidv4(), amount: Number(cashAmount), payment_mode: 'Cash' }] : []),
+          ...(Number(upiAmount) > 0 ? [{ ...baseRow, id: uuidv4(), amount: Number(upiAmount), payment_mode: 'UPI' }] : []),
+        ];
+      } else {
+        paymentRows = [{ ...baseRow, id: uuidv4(), amount: totalPaid, payment_mode: payMode }];
+      }
+
+      const { error: payError } = await supabase.from('payments').insert(paymentRows);
+
+      if (payError) {
+        showToast('Failed to save payment. Please try again.');
+        return;
+      }
+
+      // Update member record
+      await supabase.from('members').update({
+        plan_name: plan,
+        batch,
+        duration_label: duration,
+        start_date: startMs,
+        expiry_date: endMs,
+        due_amount: dueAmount,
+      }).eq('id', selectedMemberId);
+
+      // Invalidate caches
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['members_list'] });
+      queryClient.invalidateQueries({ queryKey: ['member', selectedMemberId] });
+      queryClient.invalidateQueries({ queryKey: ['payments', selectedMemberId] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] });
+
+      const msg = payStatus === 'Not Paid Yet'
+        ? `Plan started for ${memberName}. Due: ₹${dueAmount}. ✓`
+        : `₹${totalPaid} logged for ${memberName}. ✓`;
+      showToast(msg);
+      onClose();
+    } catch (error) {
+      console.error('Submit error:', error);
+      showToast('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Update member record
-    await supabase.from('members').update({
-      plan_name: plan,
-      batch,
-      duration_label: duration,
-      start_date: startMs,
-      expiry_date: endMs,
-      due_amount: dueAmount,
-    }).eq('id', selectedMemberId);
-
-    // Invalidate caches
-    queryClient.invalidateQueries({ queryKey: ['members'] });
-    queryClient.invalidateQueries({ queryKey: ['members_list'] });
-    queryClient.invalidateQueries({ queryKey: ['member', selectedMemberId] });
-    queryClient.invalidateQueries({ queryKey: ['payments', selectedMemberId] });
-    queryClient.invalidateQueries({ queryKey: ['payments'] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] });
-
-    const msg = payStatus === 'Not Paid Yet'
-      ? `Plan started for ${memberName}. Due: ₹${dueAmount}. ✓`
-      : `₹${amountPaid} logged for ${memberName}. ✓`;
-    showToast(msg);
-    onClose();
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -235,12 +267,12 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
       dirtyMessage="Payment is not saved yet. Discard and close?"
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-          <Button variant="ghost" onClick={step === 1 ? onClose : goBack}>
+          <Button variant="ghost" onClick={step === 1 ? onClose : goBack} disabled={isSubmitting}>
             {step === 1 ? 'Cancel' : 'Back'}
           </Button>
           {step < 3
-            ? <Button variant="primary" onClick={goNext}>Next</Button>
-            : <Button variant="primary" onClick={handleConfirm}>Log Payment</Button>
+            ? <Button variant="primary" onClick={goNext} disabled={isSubmitting}>Next</Button>
+            : <Button variant="primary" onClick={handleConfirm} disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Log Payment'}</Button>
           }
         </div>
       }
@@ -448,19 +480,33 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
             </div>
 
             {payStatus === 'Fully Paid' && (
-              <Input label="Amount Received (₹)" type="number" value={payingNow} onChange={e => setPayingNow(e.target.value)} error={errors.amount} />
+              payMode === 'Split' ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <Input label="Cash Amount (₹)" type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} error={errors.amount} />
+                  <Input label="UPI Amount (₹)" type="number" value={upiAmount} onChange={e => setUpiAmount(e.target.value)} />
+                </div>
+              ) : (
+                <Input label="Amount Received (₹)" type="number" value={payingNow} onChange={e => setPayingNow(e.target.value)} error={errors.amount} />
+              )
             )}
 
             {payStatus === 'Partial' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <Input label="Total Plan Fee (₹)" type="number" value={totalFee} onChange={e => setTotalFee(e.target.value)} error={errors.totalFee} />
-                <Input label="Paying Now (₹)" type="number" value={payingNow} onChange={e => setPayingNow(e.target.value)} error={errors.amount} />
+                {payMode === 'Split' ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <Input label="Cash Amount (₹)" type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} error={errors.amount} />
+                    <Input label="UPI Amount (₹)" type="number" value={upiAmount} onChange={e => setUpiAmount(e.target.value)} />
+                  </div>
+                ) : (
+                  <Input label="Paying Now (₹)" type="number" value={payingNow} onChange={e => setPayingNow(e.target.value)} error={errors.amount} />
+                )}
               </div>
             )}
 
-            {payStatus === 'Partial' && totalFee && payingNow && Number(totalFee) > Number(payingNow) && (
+            {payStatus === 'Partial' && totalFee && (Number(totalFee) > (payMode === 'Split' ? Number(cashAmount) + Number(upiAmount) : Number(payingNow))) && (
               <div style={{ fontSize: '13px', color: '#dc2626', background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-sm)', padding: '8px 12px' }}>
-                Due after this payment: <strong>₹{Number(totalFee) - Number(payingNow)}</strong>
+                Due after this payment: <strong>₹{Number(totalFee) - (payMode === 'Split' ? Number(cashAmount) + Number(upiAmount) : Number(payingNow))}</strong>
               </div>
             )}
 
@@ -477,7 +523,13 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <FilterChip label="Cash" selected={payMode === 'Cash'} onClick={() => setPayMode('Cash')} />
                   <FilterChip label="UPI" selected={payMode === 'UPI'} onClick={() => setPayMode('UPI')} />
+                  <FilterChip label="Split" selected={payMode === 'Split'} onClick={() => setPayMode('Split')} />
                 </div>
+                {payMode === 'Split' && (
+                  <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '6px' }}>
+                    Total: ₹{(Number(cashAmount) || 0) + (Number(upiAmount) || 0)}
+                  </p>
+                )}
               </div>
             )}
 

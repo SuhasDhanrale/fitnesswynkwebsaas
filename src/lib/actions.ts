@@ -6,9 +6,9 @@ import { queryClient } from './queryClient';
 // ─── Add Member ─────────────────────────────────────────────────────────────
 
 export const addMember = async (
-  data: Omit<Member, 'id'> & { initialPayment: number }
+  data: Omit<Member, 'id'> & { initialPayments: { amount: number; mode: 'Cash' | 'UPI' }[] }
 ) => {
-  const { initialPayment, ...memberData } = data;
+  const { initialPayments, ...memberData } = data;
   const member: Member = { id: uuidv4(), ...memberData };
 
   // Persist to Supabase
@@ -27,46 +27,43 @@ export const addMember = async (
 
   if (memberError) {
     console.error('Error saving member:', memberError.message);
-    return;
+    return { error: memberError.message };
   }
 
   // Invalidate members cache
   queryClient.invalidateQueries({ queryKey: ['members'] });
   queryClient.invalidateQueries({ queryKey: ['members_list'] });
 
-  // Log initial payment if provided
-  if (initialPayment > 0) {
-    const payment: Payment = {
+  // Log initial payments if provided (supports split: one Cash row + one UPI row)
+  const payableEntries = initialPayments.filter(p => p.amount > 0);
+  if (payableEntries.length > 0) {
+    const timestamp = Date.now();
+    const rows = payableEntries.map(p => ({
       id: uuidv4(),
-      memberId: member.id,
-      memberName: member.name,
-      amount: initialPayment,
-      paymentMode: 'Cash',
-      planName: member.planName,
+      member_id: member.id,
+      member_name: member.name,
+      amount: p.amount,
+      payment_mode: p.mode,
+      plan_name: member.planName,
       batch: member.batch,
-      startDate: member.startDate,
-      endDate: member.expiryDate,
+      start_date: member.startDate,
+      end_date: member.expiryDate,
       notes: 'Initial payment',
-      timestamp: Date.now(),
-    };
+      timestamp,
+    }));
 
-    await supabase.from('payments').insert({
-      id: payment.id,
-      member_id: payment.memberId,
-      member_name: payment.memberName,
-      amount: payment.amount,
-      payment_mode: payment.paymentMode,
-      plan_name: payment.planName,
-      batch: payment.batch,
-      start_date: payment.startDate,
-      end_date: payment.endDate,
-      notes: payment.notes,
-      timestamp: payment.timestamp,
-    });
+    const { error: paymentError } = await supabase.from('payments').insert(rows);
+
+    if (paymentError) {
+      console.error('Error saving initial payment:', paymentError.message);
+      return { error: paymentError.message };
+    }
 
     queryClient.invalidateQueries({ queryKey: ['payments'] });
     queryClient.invalidateQueries({ queryKey: ['payments', member.id] });
   }
+
+  return { success: true };
 };
 
 // ─── Process Payment & Renewal ───────────────────────────────────────────────
