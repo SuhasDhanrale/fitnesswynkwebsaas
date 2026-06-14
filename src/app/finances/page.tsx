@@ -226,7 +226,7 @@ export default function Finances() {
 
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
               <Button variant="primary" icon="Plus" onClick={() => setAddExpenseOpen(true)}>Add Expense</Button>
-              <Button variant="outline" onClick={() => setAddScheduledExpenseOpen(true)}>Add Scheduled Expense</Button>
+              <Button variant="ghost" onClick={() => setAddScheduledExpenseOpen(true)}>Add Scheduled Expense</Button>
             </div>
           </div>
         )}
