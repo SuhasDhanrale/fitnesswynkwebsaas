@@ -479,41 +479,6 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
               </div>
             </div>
 
-            {payStatus === 'Fully Paid' && (
-              payMode === 'Split' ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <Input label="Cash Amount (₹)" type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} error={errors.amount} />
-                  <Input label="UPI Amount (₹)" type="number" value={upiAmount} onChange={e => setUpiAmount(e.target.value)} />
-                </div>
-              ) : (
-                <Input label="Amount Received (₹)" type="number" value={payingNow} onChange={e => setPayingNow(e.target.value)} error={errors.amount} />
-              )
-            )}
-
-            {payStatus === 'Partial' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <Input label="Total Plan Fee (₹)" type="number" value={totalFee} onChange={e => setTotalFee(e.target.value)} error={errors.totalFee} />
-                {payMode === 'Split' ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <Input label="Cash Amount (₹)" type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} error={errors.amount} />
-                    <Input label="UPI Amount (₹)" type="number" value={upiAmount} onChange={e => setUpiAmount(e.target.value)} />
-                  </div>
-                ) : (
-                  <Input label="Paying Now (₹)" type="number" value={payingNow} onChange={e => setPayingNow(e.target.value)} error={errors.amount} />
-                )}
-              </div>
-            )}
-
-            {payStatus === 'Partial' && totalFee && (Number(totalFee) > (payMode === 'Split' ? Number(cashAmount) + Number(upiAmount) : Number(payingNow))) && (
-              <div style={{ fontSize: '13px', color: '#dc2626', background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-sm)', padding: '8px 12px' }}>
-                Due after this payment: <strong>₹{Number(totalFee) - (payMode === 'Split' ? Number(cashAmount) + Number(upiAmount) : Number(payingNow))}</strong>
-              </div>
-            )}
-
-            {payStatus === 'Not Paid Yet' && (
-              <Input label="Total Plan Fee / Due Amount (₹)" type="number" value={totalFee} onChange={e => setTotalFee(e.target.value)} />
-            )}
-
             {/* Payment mode — only show if money is being collected */}
             {payStatus !== 'Not Paid Yet' && (
               <div>
@@ -525,13 +490,51 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
                   <FilterChip label="UPI" selected={payMode === 'UPI'} onClick={() => setPayMode('UPI')} />
                   <FilterChip label="Split" selected={payMode === 'Split'} onClick={() => setPayMode('Split')} />
                 </div>
-                {payMode === 'Split' && (
-                  <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '6px' }}>
-                    Total: ₹{(Number(cashAmount) || 0) + (Number(upiAmount) || 0)}
-                  </p>
-                )}
               </div>
             )}
+
+            <div style={{ background: 'var(--color-background-alt, #f9fafb)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {payStatus === 'Fully Paid' && (
+                payMode === 'Split' ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <Input label="Cash Amount (₹)" type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} error={errors.amount} />
+                    <Input label="UPI Amount (₹)" type="number" value={upiAmount} onChange={e => setUpiAmount(e.target.value)} />
+                  </div>
+                ) : (
+                  <Input label="Amount Received (₹)" type="number" value={payingNow} onChange={e => setPayingNow(e.target.value)} error={errors.amount} />
+                )
+              )}
+
+              {payStatus === 'Partial' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <Input label="Total Plan Fee (₹)" type="number" value={totalFee} onChange={e => setTotalFee(e.target.value)} error={errors.totalFee} />
+                  {payMode === 'Split' ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <Input label="Cash Amount (₹)" type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} error={errors.amount} />
+                      <Input label="UPI Amount (₹)" type="number" value={upiAmount} onChange={e => setUpiAmount(e.target.value)} />
+                    </div>
+                  ) : (
+                    <Input label="Paying Now (₹)" type="number" value={payingNow} onChange={e => setPayingNow(e.target.value)} error={errors.amount} />
+                  )}
+                </div>
+              )}
+
+              {payStatus === 'Partial' && totalFee && (Number(totalFee) > (payMode === 'Split' ? Number(cashAmount) + Number(upiAmount) : Number(payingNow))) && (
+                <div style={{ fontSize: '13px', color: '#dc2626', background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-sm)', padding: '8px 12px' }}>
+                  Due after this payment: <strong>₹{Number(totalFee) - (payMode === 'Split' ? Number(cashAmount) + Number(upiAmount) : Number(payingNow))}</strong>
+                </div>
+              )}
+
+              {payStatus === 'Not Paid Yet' && (
+                <Input label="Total Plan Fee / Due Amount (₹)" type="number" value={totalFee} onChange={e => setTotalFee(e.target.value)} />
+              )}
+
+              {payStatus !== 'Not Paid Yet' && payMode === 'Split' && (
+                <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                  Total Received: <strong style={{ color: 'var(--color-text)' }}>₹{(Number(cashAmount) || 0) + (Number(upiAmount) || 0)}</strong>
+                </p>
+              )}
+            </div>
 
             <textarea
               rows={2}

@@ -272,35 +272,6 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
               </div>
             </div>
 
-            {payStatus === 'Fully Paid' && (
-              payMode === 'Split' ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <Input label="Cash Amount (₹)" type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} />
-                  <Input label="UPI Amount (₹)" type="number" value={upiAmount} onChange={e => setUpiAmount(e.target.value)} />
-                </div>
-              ) : (
-                <Input label="Amount Received (₹)" type="number" value={payingNow} onChange={e => setPayingNow(e.target.value)} />
-              )
-            )}
-
-            {payStatus === 'Partial' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <Input label="Total Fee (₹)" type="number" value={totalFee} onChange={e => setTotalFee(e.target.value)} />
-                {payMode === 'Split' ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <Input label="Cash Amount (₹)" type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} />
-                    <Input label="UPI Amount (₹)" type="number" value={upiAmount} onChange={e => setUpiAmount(e.target.value)} />
-                  </div>
-                ) : (
-                  <Input label="Paying Now (₹)" type="number" value={payingNow} onChange={e => setPayingNow(e.target.value)} />
-                )}
-              </div>
-            )}
-
-            {payStatus === 'Unpaid' && (
-              <Input label="Total Due Amount (₹)" type="number" value={totalFee} onChange={e => setTotalFee(e.target.value)} />
-            )}
-
             {/* Payment mode — only shown when money is being collected */}
             {payStatus !== 'Unpaid' && (
               <div>
@@ -310,13 +281,45 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
                   <FilterChip label="UPI" selected={payMode === 'UPI'} onClick={() => setPayMode('UPI')} />
                   <FilterChip label="Split" selected={payMode === 'Split'} onClick={() => setPayMode('Split')} />
                 </div>
-                {payMode === 'Split' && (
-                  <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '6px' }}>
-                    Total: ₹{(Number(cashAmount) || 0) + (Number(upiAmount) || 0)}
-                  </p>
-                )}
               </div>
             )}
+
+            <div style={{ background: 'var(--color-background-alt, #f9fafb)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {payStatus === 'Fully Paid' && (
+                payMode === 'Split' ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <Input label="Cash Amount (₹)" type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} />
+                    <Input label="UPI Amount (₹)" type="number" value={upiAmount} onChange={e => setUpiAmount(e.target.value)} />
+                  </div>
+                ) : (
+                  <Input label="Amount Received (₹)" type="number" value={payingNow} onChange={e => setPayingNow(e.target.value)} />
+                )
+              )}
+
+              {payStatus === 'Partial' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <Input label="Total Fee (₹)" type="number" value={totalFee} onChange={e => setTotalFee(e.target.value)} />
+                  {payMode === 'Split' ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <Input label="Cash Amount (₹)" type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} />
+                      <Input label="UPI Amount (₹)" type="number" value={upiAmount} onChange={e => setUpiAmount(e.target.value)} />
+                    </div>
+                  ) : (
+                    <Input label="Paying Now (₹)" type="number" value={payingNow} onChange={e => setPayingNow(e.target.value)} />
+                  )}
+                </div>
+              )}
+
+              {payStatus === 'Unpaid' && (
+                <Input label="Total Due Amount (₹)" type="number" value={totalFee} onChange={e => setTotalFee(e.target.value)} />
+              )}
+
+              {payStatus !== 'Unpaid' && payMode === 'Split' && (
+                <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                  Total Received: <strong style={{ color: 'var(--color-text)' }}>₹{(Number(cashAmount) || 0) + (Number(upiAmount) || 0)}</strong>
+                </p>
+              )}
+            </div>
 
             <textarea
               rows={2}
