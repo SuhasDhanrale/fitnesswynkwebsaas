@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AddEnquiryModal } from '@/components/modals/AddEnquiryModal';
 import { buildEnquiryWhatsApp, buildCallLink } from '@/lib/whatsapp';
-import { supabase } from '@/lib/supabaseClient';
+import { toggleEnquiryConverted, deleteEnquiry } from '@/lib/actions';
 import { queryClient } from '@/lib/queryClient';
 import styles from './page.module.css';
 
@@ -21,15 +21,12 @@ export default function Enquiries() {
   const toggleConverted = async (id: string) => {
     const enquiry = enquiries.find(e => e.id === id);
     if (!enquiry) return;
-    await supabase
-      .from('enquiries')
-      .update({ is_converted: !enquiry.isConverted })
-      .eq('id', id);
+    await toggleEnquiryConverted(id, !enquiry.isConverted);
     queryClient.invalidateQueries({ queryKey: ['enquiries'] });
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('enquiries').delete().eq('id', id);
+    await deleteEnquiry(id);
     queryClient.invalidateQueries({ queryKey: ['enquiries'] });
   };
 

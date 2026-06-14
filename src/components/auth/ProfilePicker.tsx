@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { addStaffProfile } from '@/lib/actions';
 import { useAuth } from '@/context/AuthContext';
 import styles from './ProfilePicker.module.css';
 
@@ -120,7 +121,7 @@ export function ProfilePicker() {
     if (!trimmed) return;
     const colors = ['#FFDE21', '#333333', '#4CAF50', '#7C3AED'];
     const color = colors[profiles.length % colors.length];
-    await supabase.from('staff_profiles').insert({ name: trimmed, avatar_color: color });
+    await addStaffProfile(trimmed, color);
     await fetchProfiles();
     setNewName('');
     setScreen('profiles');

@@ -6,6 +6,7 @@ import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ChangePinModal } from '@/components/modals/ChangePinModal';
+import { saveGymSettings } from '@/lib/actions';
 import styles from './page.module.css';
 
 const DEFAULT_PLANS = ['Monthly Cardio', 'Weight Training', 'CrossFit', 'Yearly Pro'];
@@ -26,23 +27,18 @@ export default function Settings() {
   const [changePinOpen, setChangePinOpen] = useState(false);
 
   const saveProfile = async () => {
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { gymName: gymName.trim(), upiId: upiId.trim(), qrCodeUrl: qrPreview, enableSmartEntry } });
-    
-    // Attempt to persist to Supabase
-    try {
-      const { supabase } = await import('@/lib/supabaseClient');
-      await supabase.from('gym_settings').update({
-        gym_name: gymName.trim(),
-        upi_id: upiId.trim(),
-        qr_code_url: qrPreview,
-        enable_smart_entry: enableSmartEntry,
-        available_plans: state.settings.availablePlans,
-        batches: state.settings.batches,
-        durations: state.settings.durations
-      }).eq('id', 1);
-    } catch (e) {
-      console.error('Failed to save settings to DB', e);
-    }
+    const updated = { gymName: gymName.trim(), upiId: upiId.trim(), qrCodeUrl: qrPreview, enableSmartEntry };
+    dispatch({ type: 'UPDATE_SETTINGS', payload: updated });
+
+    await saveGymSettings({
+      gym_name: updated.gymName,
+      upi_id: updated.upiId,
+      qr_code_url: updated.qrCodeUrl,
+      enable_smart_entry: updated.enableSmartEntry,
+      available_plans: state.settings.availablePlans,
+      batches: state.settings.batches,
+      durations: state.settings.durations,
+    });
 
     showToast('Gym profile & settings saved! ✓');
   };
@@ -54,26 +50,32 @@ export default function Settings() {
     dispatch({ type: 'UPDATE_SETTINGS', payload: { [field]: newArray } });
     setter('');
 
-    try {
-      const { supabase } = await import('@/lib/supabaseClient');
-      const dbField = field === 'availablePlans' ? 'available_plans' : field;
-      await supabase.from('gym_settings').update({ [dbField]: newArray }).eq('id', 1);
-    } catch (e) {
-      console.error(`Failed to save ${field} to DB`, e);
-    }
+    const updated = { ...state.settings, [field]: newArray };
+    await saveGymSettings({
+      gym_name: updated.gymName,
+      upi_id: updated.upiId,
+      qr_code_url: updated.qrCodeUrl,
+      enable_smart_entry: updated.enableSmartEntry,
+      available_plans: updated.availablePlans,
+      batches: updated.batches,
+      durations: updated.durations,
+    });
   };
 
   const removeItem = async (field: 'availablePlans' | 'batches' | 'durations', value: string) => {
     const newArray = state.settings[field].filter(v => v !== value);
     dispatch({ type: 'UPDATE_SETTINGS', payload: { [field]: newArray } });
 
-    try {
-      const { supabase } = await import('@/lib/supabaseClient');
-      const dbField = field === 'availablePlans' ? 'available_plans' : field;
-      await supabase.from('gym_settings').update({ [dbField]: newArray }).eq('id', 1);
-    } catch (e) {
-      console.error(`Failed to remove ${field} from DB`, e);
-    }
+    const updated = { ...state.settings, [field]: newArray };
+    await saveGymSettings({
+      gym_name: updated.gymName,
+      upi_id: updated.upiId,
+      qr_code_url: updated.qrCodeUrl,
+      enable_smart_entry: updated.enableSmartEntry,
+      available_plans: updated.availablePlans,
+      batches: updated.batches,
+      durations: updated.durations,
+    });
   };
 
   const handleQrChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,18 +89,17 @@ export default function Settings() {
 
   const resetToDefaults = async () => {
     dispatch({ type: 'UPDATE_SETTINGS', payload: { availablePlans: DEFAULT_PLANS, batches: DEFAULT_BATCHES, durations: DEFAULT_DURATIONS } });
-    
-    try {
-      const { supabase } = await import('@/lib/supabaseClient');
-      await supabase.from('gym_settings').update({
-        available_plans: DEFAULT_PLANS,
-        batches: DEFAULT_BATCHES,
-        durations: DEFAULT_DURATIONS
-      }).eq('id', 1);
-      showToast('Settings reset to defaults! ✓');
-    } catch (e) {
-      console.error('Failed to reset settings in DB', e);
-    }
+
+    await saveGymSettings({
+      gym_name: state.settings.gymName,
+      upi_id: state.settings.upiId,
+      qr_code_url: state.settings.qrCodeUrl,
+      enable_smart_entry: state.settings.enableSmartEntry,
+      available_plans: DEFAULT_PLANS,
+      batches: DEFAULT_BATCHES,
+      durations: DEFAULT_DURATIONS,
+    });
+    showToast('Settings reset to defaults! ✓');
   };
 
   return (

@@ -8,9 +8,8 @@ import { Input } from '@/components/ui/Input';
 import { Payment } from '@/types';
 import { useState } from 'react';
 import { useToast } from '@/components/ui/Toast';
-import { supabase } from '@/lib/supabaseClient';
+import { correctPaymentAmount } from '@/lib/actions';
 import { queryClient } from '@/lib/queryClient';
-import { v4 as uuidv4 } from 'uuid';
 
 interface PaymentDetailModalProps {
   isOpen: boolean;
@@ -76,22 +75,14 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, 
 
     setIsSubmitting(true);
     try {
-      // 1. Insert audit log
-      const { error: logError } = await supabase.from('payment_corrections').insert({
-        id: uuidv4(),
-        payment_id: payment.id,
-        old_amount: payment.amount,
-        new_amount: Number(newAmount),
-        reason: reason.trim(),
-        corrected_at: Date.now()
-      });
-      if (logError) throw logError;
+      const result = await correctPaymentAmount(
+        payment.id,
+        payment.amount,
+        Number(newAmount),
+        reason.trim()
+      );
 
-      // 2. Update payment
-      const { error: updateError } = await supabase.from('payments')
-        .update({ amount: Number(newAmount), is_edited: true })
-        .eq('id', payment.id);
-      if (updateError) throw updateError;
+      if (result.error) throw new Error(result.error);
 
       queryClient.invalidateQueries({ queryKey: ['finances'] });
       queryClient.invalidateQueries({ queryKey: ['members'] });

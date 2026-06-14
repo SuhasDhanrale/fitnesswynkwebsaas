@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Task } from '@/types';
+import { createTask, updateTask } from '@/lib/actions';
 import { supabase } from '@/lib/supabaseClient';
 import { queryClient } from '@/lib/queryClient';
 import styles from './page.module.css';
@@ -82,8 +83,8 @@ export default function TasksPage() {
     );
     setDraggedTaskId(null);
 
-    // Persist to Supabase
-    await supabase.from('tasks').update({ status }).eq('id', draggedTaskId);
+    // Persist via server action
+    await updateTask(draggedTaskId, { status });
     invalidateTasks();
   };
 
@@ -99,25 +100,22 @@ export default function TasksPage() {
 
   const handleSaveTask = async (taskData: Partial<Task>) => {
     if (editingTask) {
-      // Update existing task
-      await supabase.from('tasks').update({
+      await updateTask(editingTask.id, {
         title: taskData.title,
         description: taskData.description,
         assignee: taskData.assignee,
         status: taskData.status,
         priority: taskData.priority,
         due_date: taskData.dueDate ?? null,
-      }).eq('id', editingTask.id);
+      });
     } else {
-      // Insert new task
-      await supabase.from('tasks').insert({
+      await createTask({
         title: taskData.title || '',
         description: taskData.description || '',
         assignee: taskData.assignee || 'Admin',
         status: taskData.status || 'TODO',
         priority: taskData.priority || 'MEDIUM',
         due_date: taskData.dueDate ?? null,
-        timestamp: Date.now(),
       });
     }
     invalidateTasks();

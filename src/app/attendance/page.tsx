@@ -7,10 +7,9 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useMembers } from '@/hooks/useMembers';
 import { useTodayAttendance } from '@/hooks/useAttendance';
-import { supabase } from '@/lib/supabaseClient';
+import { markAttendance, unmarkAttendance } from '@/lib/actions';
 import { queryClient } from '@/lib/queryClient';
 import { getTodayMidnight } from '@/lib/dateUtils';
-import { v4 as uuidv4 } from 'uuid';
 import styles from './page.module.css';
 
 export default function Attendance() {
@@ -29,17 +28,9 @@ export default function Attendance() {
 
   const toggleAttendance = async (memberId: string) => {
     if (isPresent(memberId)) {
-      // Remove from Supabase
-      await supabase
-        .from('attendance')
-        .delete()
-        .eq('member_id', memberId)
-        .eq('date', todayMidnight);
+      await unmarkAttendance(memberId, todayMidnight);
     } else {
-      // Insert into Supabase
-      await supabase
-        .from('attendance')
-        .insert({ id: uuidv4(), member_id: memberId, date: todayMidnight });
+      await markAttendance(memberId, todayMidnight);
     }
     // Invalidate so the list refreshes immediately
     queryClient.invalidateQueries({ queryKey: ['attendance_today'] });

@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { ConfirmPinModal } from './ConfirmPinModal';
 import { useApp } from '@/context/AppContext';
-import { supabase } from '@/lib/supabaseClient';
+import { updateMember } from '@/lib/actions';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/components/ui/Toast';
 import { calcEndDate } from '@/lib/dateUtils';
@@ -66,23 +66,20 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({ isOpen, onClos
   };
 
   const handleConfirmedSave = async () => {
-    const { error } = await supabase
-      .from('members')
-      .update({
-        name: name.trim(),
-        phone_number: phone.trim(),
-        plan_name: plan,
-        batch,
-        duration_label: duration,
-        start_date: new Date(startDate).getTime(),
-        expiry_date: new Date(expiryDate).getTime(),
-        notes: notes.trim(),
-        due_amount: markFullyPaid ? 0 : member.dueAmount,
-      })
-      .eq('id', member.id);
+    const result = await updateMember(member.id, {
+      name: name.trim(),
+      phone_number: phone.trim(),
+      plan_name: plan,
+      batch,
+      duration_label: duration,
+      start_date: new Date(startDate).getTime(),
+      expiry_date: new Date(expiryDate).getTime(),
+      notes: notes.trim(),
+      due_amount: markFullyPaid ? 0 : member.dueAmount,
+    });
 
-    if (error) {
-      showToast(`Failed to update member: ${error.message}`, 'error');
+    if (result.error) {
+      showToast(`Failed to update member: ${result.error}`, 'error');
       return;
     }
 

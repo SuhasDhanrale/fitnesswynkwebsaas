@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { logAuditAction } from '@/lib/actions';
 
 interface AuthContextValue {
   currentUser: string | null;
@@ -36,15 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logAction = useCallback(async (action: string, details?: Record<string, unknown>) => {
     const user = sessionStorage.getItem(SESSION_KEY) ?? 'Unknown';
-    try {
-      await supabase.from('audit_log').insert({
-        staff_name: user,
-        action,
-        details: details ?? null,
-      });
-    } catch {
-      // Silent fail — audit logging should never break the app
-    }
+    await logAuditAction(user, action, details);
   }, []);
 
   // Don't render until hydrated to avoid SSR mismatch

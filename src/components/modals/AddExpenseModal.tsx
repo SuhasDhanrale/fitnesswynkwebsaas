@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { supabase } from '@/lib/supabaseClient';
+import { addExpense } from '@/lib/actions';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/components/ui/Toast';
 
@@ -27,17 +26,14 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClos
     if (!amount || Number(amount) <= 0) errs.amount = 'Amount is required.';
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
-    const { error } = await supabase.from('expenses').insert({
-      id: uuidv4(),
+    const result = await addExpense({
       title: title.trim(),
       amount: Number(amount),
-      date: Date.now(),
       notes: notes.trim(),
-      category: 'General',
     });
 
-    if (error) {
-      showToast(`Failed to add expense: ${error.message}`, 'error');
+    if (result.error) {
+      showToast(`Failed to add expense: ${result.error}`, 'error');
       return;
     }
 
