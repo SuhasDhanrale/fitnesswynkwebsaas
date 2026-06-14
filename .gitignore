@@ -36,6 +36,7 @@ yarn-error.log*
 next-env.d.ts
 
 passwordsupabase
+export_firebase*.js
 
 # Sensitive data files — NEVER commit these
 *_raw.json

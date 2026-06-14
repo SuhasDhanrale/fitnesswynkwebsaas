@@ -4,7 +4,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { parseSmartText } from '../../../lib/parser';
 import { v4 as uuidv4 } from 'uuid';
 
-const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'fitnesswynk_token_123';
+const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
 const ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const AUTHORIZED_OWNER_PHONE = process.env.AUTHORIZED_OWNER_PHONE; // India code + number (e.g., '919876543210')
