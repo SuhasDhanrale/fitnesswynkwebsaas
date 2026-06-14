@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { checkRateLimit } from '@/lib/rateLimit';
 
 export async function POST(req: NextRequest) {
