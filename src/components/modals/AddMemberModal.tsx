@@ -47,6 +47,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
   const [upiAmount, setUpiAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [allowDuplicatePhone, setAllowDuplicatePhone] = useState(false);
   
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -56,6 +57,10 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
       setTimeout(() => nameInputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    setAllowDuplicatePhone(false);
+  }, [phone]);
 
   // Move focus to first visible input when step changes
   useEffect(() => {
@@ -85,7 +90,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
     const errs: Record<string, string> = {};
     if (!name.trim()) errs.name = 'Name is required.';
     if (!/^\d{10}$/.test(phone)) errs.phone = 'Must be exactly 10 digits.';
-    else if (membersList.some(m => m.phoneNumber === phone)) {
+    else if (!allowDuplicatePhone && membersList.some(m => m.phoneNumber === phone)) {
       errs.phone = 'This mobile number already exists.';
     }
     setErrors(errs);
@@ -157,6 +162,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
     setName(''); setPhone(''); setNotes(''); setErrors({});
     setPayingNow(''); setTotalFee('');
     setCashAmount(''); setUpiAmount('');
+    setAllowDuplicatePhone(false);
     setPayMode('Cash');
     setPayStatus('Fully Paid');
     setPlan(state.settings.availablePlans[0]);
@@ -218,7 +224,25 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <Input ref={nameInputRef} label="Full Name" value={name} onChange={e => setName(e.target.value)} error={errors.name} />
-              <Input label="Phone Number" type="tel" maxLength={10} value={phone} onChange={e => setPhone(e.target.value)} error={errors.phone} />
+              <div>
+                <Input label="Phone Number" type="tel" maxLength={10} value={phone} onChange={e => setPhone(e.target.value)} error={errors.phone} />
+                {membersList.some(m => m.phoneNumber === phone) && /^\d{10}$/.test(phone) && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '8px', cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={allowDuplicatePhone} 
+                      onChange={(e) => {
+                        setAllowDuplicatePhone(e.target.checked);
+                        if (e.target.checked && errors.phone) {
+                          setErrors(prev => ({ ...prev, phone: '' }));
+                        }
+                      }} 
+                      style={{ width: '16px', height: '16px', accentColor: 'var(--color-primary)' }}
+                    />
+                    Proceed with existing number
+                  </label>
+                )}
+              </div>
             </div>
           </div>
         )}
