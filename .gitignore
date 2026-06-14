@@ -37,5 +37,11 @@ next-env.d.ts
 
 passwordsupabase
 
+# Sensitive data files — NEVER commit these
+*_raw.json
+*_migration.sql
+firebase-key*
+*.key.json
+
 .vercel
 .env*

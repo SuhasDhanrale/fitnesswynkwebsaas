@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 
 
@@ -10,6 +11,25 @@ function hashPin(pin: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting: max 5 attempts per IP per 15 minutes (shares window with verify-pin)
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || req.headers.get('x-real-ip')
+      || 'unknown';
+    const rateLimit = checkRateLimit(`verify-pin:${ip}`);
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { ok: false, error: `Too many attempts. Try again in ${Math.ceil(rateLimit.resetInSeconds / 60)} minutes.` },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(rateLimit.resetInSeconds),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      );
+    }
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabaseServer = createClient(supabaseUrl, supabaseKey);
