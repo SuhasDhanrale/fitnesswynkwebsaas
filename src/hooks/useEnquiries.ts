@@ -18,6 +18,8 @@ async function fetchEnquiries(): Promise<Enquiry[]> {
     notes: (e.notes as string) || '',
     isConverted: (e.is_converted as boolean) ?? false,
     timestamp: Number(e.timestamp),
+    location: (e.location as string) || undefined,
+    source: (e.source as string) || undefined,
   }));
 }
 

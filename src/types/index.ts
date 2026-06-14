@@ -55,6 +55,8 @@ export interface Enquiry {
   notes: string;
   isConverted: boolean;
   timestamp: number;
+  location?: string;
+  source?: string;
 }
 
 // Announcement

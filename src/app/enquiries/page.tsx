@@ -86,6 +86,12 @@ export default function Enquiries() {
                     Interested in: <strong style={{ color: 'var(--color-primary)' }}>{enquiry.planOfInterest}</strong>
                   </div>
                 )}
+                {(enquiry.location || enquiry.source) && (
+                  <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    {enquiry.location && <span>📍 {enquiry.location}</span>}
+                    {enquiry.source && <span>📢 {enquiry.source}</span>}
+                  </div>
+                )}
                 {enquiry.notes && <div className={styles.notesText}>{enquiry.notes}</div>}
                 <div className={styles.timestamp}>{format(enquiry.timestamp, 'dd MMM, hh:mm a')}</div>
 

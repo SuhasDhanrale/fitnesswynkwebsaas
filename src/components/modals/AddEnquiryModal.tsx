@@ -21,9 +21,21 @@ export const AddEnquiryModal: React.FC<AddEnquiryModalProps> = ({ isOpen, onClos
   const { showToast } = useToast();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [location, setLocation] = useState('');
+  const [source, setSource] = useState('Select Source (Optional)');
   const [planOfInterest, setPlanOfInterest] = useState(state.settings.availablePlans[0] || '');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const SOURCE_OPTIONS = [
+    'Select Source (Optional)',
+    'Online',
+    'Local Advertisement',
+    'Walk-in',
+    'Friend / Family Referral',
+    'Old Member / Renewal',
+    'Social Media (Instagram/Facebook)',
+  ];
 
   const handleConfirm = async () => {
     const errs: Record<string, string> = {};
@@ -35,6 +47,8 @@ export const AddEnquiryModal: React.FC<AddEnquiryModalProps> = ({ isOpen, onClos
       id: uuidv4(),
       name: name.trim(),
       phone_number: phone.trim(),
+      location: location.trim() || null,
+      source: source === 'Select Source (Optional)' ? null : source,
       plan_of_interest: planOfInterest,
       notes: notes.trim(),
       is_converted: false,
@@ -49,7 +63,7 @@ export const AddEnquiryModal: React.FC<AddEnquiryModalProps> = ({ isOpen, onClos
 
     queryClient.invalidateQueries({ queryKey: ['enquiries'] });
     showToast(`Enquiry for ${name.trim()} added! ✓`);
-    setName(''); setPhone(''); setNotes(''); setErrors({});
+    setName(''); setPhone(''); setLocation(''); setSource('Select Source (Optional)'); setNotes(''); setErrors({});
     onClose();
   };
 
@@ -65,9 +79,11 @@ export const AddEnquiryModal: React.FC<AddEnquiryModalProps> = ({ isOpen, onClos
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <Input label="Name" value={name} onChange={e => setName(e.target.value)} error={errors.name} />
         <Input label="Phone Number" type="tel" maxLength={10} value={phone} onChange={e => setPhone(e.target.value)} error={errors.phone} />
+        <Input label="Location (Optional)" value={location} onChange={e => setLocation(e.target.value)} />
+        <Select label="How did you hear about us?" options={SOURCE_OPTIONS} value={source} onChange={e => setSource(e.target.value)} />
         <Select label="Interested Plan" options={state.settings.availablePlans} value={planOfInterest} onChange={e => setPlanOfInterest(e.target.value)} />
         <textarea
           rows={3}
