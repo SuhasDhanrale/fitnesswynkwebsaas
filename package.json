@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.106.0",
+    "@neondatabase/serverless": "^1.1.0",
     "@tanstack/react-query": "^5.100.11",
     "@types/uuid": "^10.0.0",
     "bcryptjs": "^3.0.3",

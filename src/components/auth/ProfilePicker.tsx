@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { supabase } from '@/lib/supabaseClient';
 import { addStaffProfile } from '@/lib/actions';
+import { fetchStaffProfiles } from '@/lib/queries';
 import { useAuth } from '@/context/AuthContext';
 import styles from './ProfilePicker.module.css';
 
@@ -54,8 +54,8 @@ export function ProfilePicker() {
   }, [screen, pin, selectedProfile]);
 
   async function fetchProfiles() {
-    const { data } = await supabase.from('staff_profiles').select('*').order('id');
-    setProfiles(data ?? []);
+    const data = await fetchStaffProfiles();
+    setProfiles(data);
     setLoading(false);
   }
 

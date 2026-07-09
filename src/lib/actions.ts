@@ -1,79 +1,70 @@
 'use server';
 
-/**
- * Server Actions — All database writes go through here.
- *
- * This file runs exclusively on the server (Next.js Server Actions).
- * It uses the service_role key via supabaseServer, which bypasses RLS.
- * Client components call these functions directly — Next.js serialises
- * the call over a secure POST request automatically.
- *
- * NEVER import supabaseServer from a client component. All writes must
- * come through these exported async functions.
- */
-
 import { v4 as uuidv4 } from 'uuid';
-import { supabaseServer } from './supabaseServer';
+import { sql } from './db';
+import { assertAppSession } from './session';
 import { Member, Payment } from '../types';
-
-// ─── UTILITY ────────────────────────────────────────────────────────────────
 
 type ActionResult = { error?: string };
 
-function err(msg: string): ActionResult {
-  return { error: msg };
+function err(error: unknown): ActionResult {
+  const message = error instanceof Error ? error.message : String(error);
+  return { error: message };
 }
 
 function ok(): ActionResult {
   return {};
 }
 
-// ─── MEMBERS ────────────────────────────────────────────────────────────────
+function requireSession(): ActionResult | null {
+  try {
+    assertAppSession();
+    return null;
+  } catch {
+    return { error: 'Unauthorized' };
+  }
+}
 
 export async function addMember(
   data: Omit<Member, 'id'> & { initialPayments: { amount: number; mode: 'Cash' | 'UPI' }[] }
-) {
+): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
+
   const { initialPayments, ...memberData } = data;
   const member: Member = { id: uuidv4(), ...memberData };
+  const payable = initialPayments.filter((p) => p.amount > 0);
+  const timestamp = Date.now();
 
-  const { error: memberError } = await supabaseServer.from('members').insert({
-    id: member.id,
-    name: member.name,
-    phone_number: member.phoneNumber,
-    plan_name: member.planName,
-    batch: member.batch,
-    start_date: member.startDate,
-    expiry_date: member.expiryDate,
-    duration_label: member.durationLabel,
-    notes: member.notes,
-    due_amount: member.dueAmount,
-  });
+  try {
+    const statements = [
+      sql`
+        insert into public.members (
+          id, name, phone_number, plan_name, batch, start_date, expiry_date,
+          duration_label, notes, due_amount
+        ) values (
+          ${member.id}::uuid, ${member.name}, ${member.phoneNumber}, ${member.planName},
+          ${member.batch}, ${member.startDate}, ${member.expiryDate}, ${member.durationLabel},
+          ${member.notes}, ${member.dueAmount}
+        )
+      `,
+      ...payable.map((p) => sql`
+        insert into public.payments (
+          id, member_id, member_name, amount, payment_mode, plan_name, batch,
+          start_date, end_date, notes, timestamp
+        ) values (
+          ${uuidv4()}::uuid, ${member.id}::uuid, ${member.name}, ${p.amount}, ${p.mode},
+          ${member.planName}, ${member.batch}, ${member.startDate}, ${member.expiryDate},
+          ${'Initial payment'}, ${timestamp}
+        )
+      `),
+    ];
 
-  if (memberError) return err(memberError.message);
-
-  // Log initial payments
-  const payable = initialPayments.filter(p => p.amount > 0);
-  if (payable.length > 0) {
-    const timestamp = Date.now();
-    const rows = payable.map(p => ({
-      id: uuidv4(),
-      member_id: member.id,
-      member_name: member.name,
-      amount: p.amount,
-      payment_mode: p.mode,
-      plan_name: member.planName,
-      batch: member.batch,
-      start_date: member.startDate,
-      end_date: member.expiryDate,
-      notes: 'Initial payment',
-      timestamp,
-    }));
-
-    const { error: paymentError } = await supabaseServer.from('payments').insert(rows);
-    if (paymentError) return err(paymentError.message);
+    await sql.transaction(statements);
+    return ok();
+  } catch (error) {
+    return err(error);
   }
-
-  return ok();
 }
 
 export async function updateMember(
@@ -89,58 +80,128 @@ export async function updateMember(
     notes: string;
     due_amount: number;
   }
-) {
-  const { error } = await supabaseServer
-    .from('members')
-    .update(data)
-    .eq('id', memberId);
+): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-  if (error) return err(error.message);
-  return ok();
+  try {
+    await sql`
+      update public.members
+      set
+        name = ${data.name},
+        phone_number = ${data.phone_number},
+        plan_name = ${data.plan_name},
+        batch = ${data.batch},
+        duration_label = ${data.duration_label},
+        start_date = ${data.start_date},
+        expiry_date = ${data.expiry_date},
+        notes = ${data.notes},
+        due_amount = ${data.due_amount}
+      where id = ${memberId}::uuid
+    `;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
 
-// ─── PAYMENTS ───────────────────────────────────────────────────────────────
+export async function deleteMember(memberId: string): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
+
+  try {
+    await sql`delete from public.members where id = ${memberId}::uuid`;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
+}
 
 export async function processPaymentAndRenewal(
   data: Omit<Payment, 'id' | 'memberName' | 'timestamp'> & { memberName?: string }
-) {
+): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
+
   const memberName = data.memberName || 'Manual Entry';
-  const payment: Payment = {
-    ...data,
-    id: uuidv4(),
-    memberName,
-    timestamp: Date.now(),
-  };
+  const paymentId = uuidv4();
+  const timestamp = Date.now();
 
-  const { error: payError } = await supabaseServer.from('payments').insert({
-    id: payment.id,
-    member_id: payment.memberId,
-    member_name: payment.memberName,
-    amount: payment.amount,
-    payment_mode: payment.paymentMode,
-    plan_name: payment.planName,
-    batch: payment.batch,
-    start_date: payment.startDate,
-    end_date: payment.endDate,
-    notes: payment.notes,
-    timestamp: payment.timestamp,
-  });
+  try {
+    await sql.transaction([
+      sql`
+        insert into public.payments (
+          id, member_id, member_name, amount, payment_mode, plan_name, batch,
+          start_date, end_date, notes, timestamp
+        ) values (
+          ${paymentId}::uuid, ${data.memberId}::uuid, ${memberName}, ${data.amount},
+          ${data.paymentMode}, ${data.planName}, ${data.batch}, ${data.startDate},
+          ${data.endDate}, ${data.notes}, ${timestamp}
+        )
+      `,
+      sql`
+        update public.members
+        set
+          plan_name = ${data.planName},
+          batch = ${data.batch},
+          start_date = ${data.startDate},
+          expiry_date = ${data.endDate},
+          due_amount = 0
+        where id = ${data.memberId}::uuid
+      `,
+    ]);
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
+}
 
-  if (payError) return err(payError.message);
+export async function logPaymentAndUpdateMember(data: {
+  memberId: string;
+  memberName: string;
+  planName: string;
+  batch: string;
+  durationLabel: string;
+  startDate: number;
+  endDate: number;
+  dueAmount: number;
+  notes: string;
+  payments: { amount: number; paymentMode: 'Cash' | 'UPI' }[];
+}): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-  const { error: memberError } = await supabaseServer
-    .from('members')
-    .update({
-      plan_name: data.planName,
-      batch: data.batch,
-      start_date: data.startDate,
-      expiry_date: data.endDate,
-      due_amount: 0,
-    })
-    .eq('id', data.memberId);
+  const timestamp = Date.now();
+  const payable = data.payments.filter((payment) => payment.amount > 0);
 
-  if (memberError) return err(memberError.message);
-  return ok();
+  try {
+    await sql.transaction([
+      ...payable.map((payment) => sql`
+        insert into public.payments (
+          id, member_id, member_name, amount, payment_mode, plan_name, batch,
+          start_date, end_date, notes, timestamp
+        ) values (
+          ${uuidv4()}::uuid, ${data.memberId}::uuid, ${data.memberName}, ${payment.amount},
+          ${payment.paymentMode}, ${data.planName}, ${data.batch}, ${data.startDate},
+          ${data.endDate}, ${data.notes}, ${timestamp}
+        )
+      `),
+      sql`
+        update public.members
+        set
+          plan_name = ${data.planName},
+          batch = ${data.batch},
+          duration_label = ${data.durationLabel},
+          start_date = ${data.startDate},
+          expiry_date = ${data.endDate},
+          due_amount = ${data.dueAmount}
+        where id = ${data.memberId}::uuid
+      `,
+    ]);
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
 
 export async function correctPaymentAmount(
@@ -148,49 +209,62 @@ export async function correctPaymentAmount(
   oldAmount: number,
   newAmount: number,
   reason: string
-) {
-  const { error: logError } = await supabaseServer.from('payment_corrections').insert({
-    id: uuidv4(),
-    payment_id: paymentId,
-    old_amount: oldAmount,
-    new_amount: newAmount,
-    reason: reason.trim(),
-    corrected_at: Date.now(),
-  });
-  if (logError) return err(logError.message);
+): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-  const { error: updateError } = await supabaseServer
-    .from('payments')
-    .update({ amount: newAmount, is_edited: true })
-    .eq('id', paymentId);
-
-  if (updateError) return err(updateError.message);
-  return ok();
+  try {
+    await sql.transaction([
+      sql`
+        insert into public.payment_corrections (
+          id, payment_id, old_amount, new_amount, reason, corrected_at
+        ) values (
+          ${uuidv4()}::uuid, ${paymentId}::uuid, ${oldAmount}, ${newAmount},
+          ${reason.trim()}, ${Date.now()}
+        )
+      `,
+      sql`
+        update public.payments
+        set amount = ${newAmount}, is_edited = true
+        where id = ${paymentId}::uuid
+      `,
+    ]);
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
 
-// ─── ATTENDANCE ──────────────────────────────────────────────────────────────
+export async function markAttendance(memberId: string, todayMidnight: number): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-export async function markAttendance(memberId: string, todayMidnight: number) {
-  const { error } = await supabaseServer
-    .from('attendance')
-    .insert({ id: uuidv4(), member_id: memberId, date: todayMidnight });
-
-  if (error) return err(error.message);
-  return ok();
+  try {
+    await sql`
+      insert into public.attendance (id, member_id, date)
+      values (${uuidv4()}::uuid, ${memberId}::uuid, ${todayMidnight})
+      on conflict (member_id, date) do nothing
+    `;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
 
-export async function unmarkAttendance(memberId: string, todayMidnight: number) {
-  const { error } = await supabaseServer
-    .from('attendance')
-    .delete()
-    .eq('member_id', memberId)
-    .eq('date', todayMidnight);
+export async function unmarkAttendance(memberId: string, todayMidnight: number): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-  if (error) return err(error.message);
-  return ok();
+  try {
+    await sql`
+      delete from public.attendance
+      where member_id = ${memberId}::uuid and date = ${todayMidnight}
+    `;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
-
-// ─── ENQUIRIES ───────────────────────────────────────────────────────────────
 
 export async function addEnquiry(data: {
   name: string;
@@ -199,61 +273,84 @@ export async function addEnquiry(data: {
   source: string | null;
   plan_of_interest: string;
   notes: string;
-}) {
-  const { error } = await supabaseServer.from('enquiries').insert({
-    id: uuidv4(),
-    ...data,
-    is_converted: false,
-    timestamp: Date.now(),
-  });
+}): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-  if (error) return err(error.message);
-  return ok();
+  try {
+    await sql`
+      insert into public.enquiries (
+        id, name, phone_number, location, source, plan_of_interest,
+        notes, is_converted, timestamp
+      ) values (
+        ${uuidv4()}::uuid, ${data.name}, ${data.phone_number}, ${data.location},
+        ${data.source}, ${data.plan_of_interest}, ${data.notes}, false, ${Date.now()}
+      )
+    `;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
 
-export async function toggleEnquiryConverted(id: string, isConverted: boolean) {
-  const { error } = await supabaseServer
-    .from('enquiries')
-    .update({ is_converted: isConverted })
-    .eq('id', id);
+export async function toggleEnquiryConverted(id: string, isConverted: boolean): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-  if (error) return err(error.message);
-  return ok();
+  try {
+    await sql`
+      update public.enquiries
+      set is_converted = ${isConverted}
+      where id = ${id}::uuid
+    `;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
 
-export async function deleteEnquiry(id: string) {
-  const { error } = await supabaseServer.from('enquiries').delete().eq('id', id);
-  if (error) return err(error.message);
-  return ok();
-}
+export async function deleteEnquiry(id: string): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-// ─── EXPENSES ────────────────────────────────────────────────────────────────
+  try {
+    await sql`delete from public.enquiries where id = ${id}::uuid`;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
+}
 
 export async function addExpense(data: {
   title: string;
   amount: number;
   notes: string;
-}) {
-  const { error } = await supabaseServer.from('expenses').insert({
-    id: uuidv4(),
-    title: data.title,
-    amount: data.amount,
-    date: Date.now(),
-    notes: data.notes,
-    category: 'General',
-  });
+}): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-  if (error) return err(error.message);
-  return ok();
+  try {
+    await sql`
+      insert into public.expenses (id, title, amount, date, notes, category)
+      values (${uuidv4()}::uuid, ${data.title}, ${data.amount}, ${Date.now()}, ${data.notes}, ${'General'})
+    `;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
 
-export async function deleteExpense(id: string) {
-  const { error } = await supabaseServer.from('expenses').delete().eq('id', id);
-  if (error) return err(error.message);
-  return ok();
-}
+export async function deleteExpense(id: string): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-// ─── SCHEDULED EXPENSES ──────────────────────────────────────────────────────
+  try {
+    await sql`delete from public.expenses where id = ${id}::uuid`;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
+}
 
 export async function addScheduledExpense(data: {
   title: string;
@@ -262,29 +359,36 @@ export async function addScheduledExpense(data: {
   frequency: string;
   notes: string;
   next_due_date: number;
-}) {
-  const { error } = await supabaseServer.from('scheduled_expenses').insert({
-    id: uuidv4(),
-    title: data.title,
-    amount: data.amount,
-    category: data.category,
-    frequency: data.frequency,
-    notes: data.notes,
-    next_due_date: data.next_due_date,
-    active: true
-  });
+}): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-  if (error) return err(error.message);
-  return ok();
+  try {
+    await sql`
+      insert into public.scheduled_expenses (
+        id, title, amount, category, frequency, notes, next_due_date, active
+      ) values (
+        ${uuidv4()}::uuid, ${data.title}, ${data.amount}, ${data.category},
+        ${data.frequency}, ${data.notes}, ${data.next_due_date}, true
+      )
+    `;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
 
-export async function deleteScheduledExpense(id: string) {
-  const { error } = await supabaseServer.from('scheduled_expenses').delete().eq('id', id);
-  if (error) return err(error.message);
-  return ok();
-}
+export async function deleteScheduledExpense(id: string): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-// ─── TASKS ───────────────────────────────────────────────────────────────────
+  try {
+    await sql`delete from public.scheduled_expenses where id = ${id}::uuid`;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
+}
 
 export async function createTask(data: {
   title: string;
@@ -293,15 +397,23 @@ export async function createTask(data: {
   status: string;
   priority: string;
   due_date: number | null;
-}) {
-  const { error } = await supabaseServer.from('tasks').insert({
-    id: uuidv4(),
-    ...data,
-    timestamp: Date.now(),
-  });
+}): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-  if (error) return err(error.message);
-  return ok();
+  try {
+    await sql`
+      insert into public.tasks (
+        id, title, description, assignee, status, priority, due_date, timestamp
+      ) values (
+        ${uuidv4()}::uuid, ${data.title}, ${data.description}, ${data.assignee},
+        ${data.status}, ${data.priority}, ${data.due_date}, ${Date.now()}
+      )
+    `;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
 
 export async function updateTask(
@@ -314,24 +426,56 @@ export async function updateTask(
     priority?: string;
     due_date?: number | null;
   }
-) {
-  const { error } = await supabaseServer.from('tasks').update(data).eq('id', taskId);
-  if (error) return err(error.message);
-  return ok();
+): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
+
+  const assignments: string[] = [];
+  const params: unknown[] = [];
+
+  ([
+    ['title', data.title],
+    ['description', data.description],
+    ['assignee', data.assignee],
+    ['status', data.status],
+    ['priority', data.priority],
+    ['due_date', data.due_date],
+  ] as const).forEach(([column, value]) => {
+    if (value !== undefined) {
+      params.push(value);
+      assignments.push(`${column} = $${params.length}`);
+    }
+  });
+
+  if (assignments.length === 0) return ok();
+
+  params.push(taskId);
+
+  try {
+    await sql.query(
+      `update public.tasks set ${assignments.join(', ')} where id = $${params.length}::uuid`,
+      params
+    );
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
 
-// ─── STAFF PROFILES ──────────────────────────────────────────────────────────
+export async function addStaffProfile(name: string, avatarColor: string): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-export async function addStaffProfile(name: string, avatarColor: string) {
-  const { error } = await supabaseServer
-    .from('staff_profiles')
-    .insert({ name, avatar_color: avatarColor });
-
-  if (error) return err(error.message);
-  return ok();
+  try {
+    await sql`
+      insert into public.staff_profiles (name, avatar_color)
+      values (${name}, ${avatarColor})
+    `;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
-
-// ─── GYM SETTINGS ────────────────────────────────────────────────────────────
 
 export async function saveGymSettings(settings: {
   gym_name: string;
@@ -341,31 +485,50 @@ export async function saveGymSettings(settings: {
   available_plans: string[];
   batches: string[];
   durations: string[];
-}) {
-  const { error } = await supabaseServer
-    .from('gym_settings')
-    .update(settings)
-    .eq('id', 1);
+}): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
 
-  if (error) return err(error.message);
-  return ok();
+  try {
+    await sql`
+      insert into public.gym_settings (
+        id, gym_name, upi_id, qr_code_url, enable_smart_entry,
+        available_plans, batches, durations, updated_at
+      ) values (
+        1, ${settings.gym_name}, ${settings.upi_id}, ${settings.qr_code_url},
+        ${settings.enable_smart_entry}, ${settings.available_plans},
+        ${settings.batches}, ${settings.durations}, now()
+      )
+      on conflict (id) do update set
+        gym_name = excluded.gym_name,
+        upi_id = excluded.upi_id,
+        qr_code_url = excluded.qr_code_url,
+        enable_smart_entry = excluded.enable_smart_entry,
+        available_plans = excluded.available_plans,
+        batches = excluded.batches,
+        durations = excluded.durations,
+        updated_at = now()
+    `;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
 }
-
-// ─── AUDIT LOG ───────────────────────────────────────────────────────────────
 
 export async function logAuditAction(
   staffName: string,
   action: string,
   details?: Record<string, unknown>
-) {
-  const { error } = await supabaseServer.from('audit_log').insert({
-    staff_name: staffName,
-    action,
-    details: details ?? null,
-  });
+): Promise<void> {
+  assertAppSession();
 
-  // Silent fail — audit logging should never break the app
-  if (error) {
-    console.error('[audit_log] Failed to write:', error.message);
+  try {
+    await sql`
+      insert into public.audit_log (staff_name, action, details)
+      values (${staffName}, ${action}, ${details ? JSON.stringify(details) : null}::jsonb)
+    `;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[audit_log] Failed to write:', message);
   }
 }

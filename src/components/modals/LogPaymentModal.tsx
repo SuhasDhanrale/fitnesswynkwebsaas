@@ -12,11 +12,11 @@ import { SmartInput } from '@/components/ui/SmartInput';
 import { useApp } from '@/context/AppContext';
 import { useMembersList } from '@/hooks/useMembers';
 import { useToast } from '@/components/ui/Toast';
-import { supabase } from '@/lib/supabaseClient';
+import { logPaymentAndUpdateMember } from '@/lib/actions';
+import { fetchMemberRenewalDetails } from '@/lib/queries';
 import { queryClient } from '@/lib/queryClient';
 import { calcEndDate } from '@/lib/dateUtils';
 import { getMaxExpectedPrice } from '@/lib/pricingUtils';
-import { v4 as uuidv4 } from 'uuid';
 
 interface LogPaymentModalProps {
   isOpen: boolean;
@@ -121,11 +121,7 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
     setShowDropdown(false);
 
     // Fetch full member for auto-fill
-    const { data: full } = await supabase
-      .from('members')
-      .select('plan_name, batch, duration_label, expiry_date')
-      .eq('id', id)
-      .single();
+    const full = await fetchMemberRenewalDetails(id);
 
     if (full) {
       setPlan(full.plan_name ?? state.settings.availablePlans[0]);
@@ -194,46 +190,35 @@ export const LogPaymentModal: React.FC<LogPaymentModalProps> = ({ isOpen, onClos
 
       const selectedMember = membersList.find(m => m.id === selectedMemberId);
       const memberName = selectedMember?.name ?? 'Unknown';
-      const timestamp = Date.now();
+      let payments: { amount: number; paymentMode: 'Cash' | 'UPI' }[];
 
       // Build payment rows — one per mode, or two if split
-      const baseRow = {
-        member_id: selectedMemberId,
-        member_name: memberName,
-        plan_name: plan,
-        batch,
-        start_date: startMs,
-        end_date: endMs,
-        notes: notes.trim(),
-        timestamp,
-      };
-
-      let paymentRows: object[];
       if (payMode === 'Split') {
-        paymentRows = [
-          ...(Number(cashAmount) > 0 ? [{ ...baseRow, id: uuidv4(), amount: Number(cashAmount), payment_mode: 'Cash' }] : []),
-          ...(Number(upiAmount) > 0 ? [{ ...baseRow, id: uuidv4(), amount: Number(upiAmount), payment_mode: 'UPI' }] : []),
+        payments = [
+          ...(Number(cashAmount) > 0 ? [{ amount: Number(cashAmount), paymentMode: 'Cash' as const }] : []),
+          ...(Number(upiAmount) > 0 ? [{ amount: Number(upiAmount), paymentMode: 'UPI' as const }] : []),
         ];
       } else {
-        paymentRows = [{ ...baseRow, id: uuidv4(), amount: totalPaid, payment_mode: payMode }];
+        payments = totalPaid > 0 ? [{ amount: totalPaid, paymentMode: payMode }] : [];
       }
 
-      const { error: payError } = await supabase.from('payments').insert(paymentRows);
+      const result = await logPaymentAndUpdateMember({
+        memberId: selectedMemberId,
+        memberName,
+        planName: plan,
+        batch,
+        durationLabel: duration,
+        startDate: startMs,
+        endDate: endMs,
+        dueAmount,
+        notes: notes.trim(),
+        payments,
+      });
 
-      if (payError) {
+      if (result.error) {
         showToast('Failed to save payment. Please try again.');
         return;
       }
-
-      // Update member record
-      await supabase.from('members').update({
-        plan_name: plan,
-        batch,
-        duration_label: duration,
-        start_date: startMs,
-        expiry_date: endMs,
-        due_amount: dueAmount,
-      }).eq('id', selectedMemberId);
 
       // Invalidate caches
       await Promise.all([

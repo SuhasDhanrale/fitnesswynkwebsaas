@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { GymSettings } from '../types';
-import { supabase } from '../lib/supabaseClient';
+import { fetchGymSettings } from '../lib/queries';
 
 // AppContext now only manages Settings (small, rarely changes)
 // All member/payment/attendance/expense data is handled by React Query hooks
@@ -48,30 +48,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const { data: dbSettings } = await supabase
-          .from('gym_settings')
-          .select('*')
-          .eq('id', 1)
-          .maybeSingle();
+        const dbSettings = await fetchGymSettings();
 
         if (dbSettings) {
           dispatch({
             type: 'SET_SETTINGS',
             payload: {
-              gymName: dbSettings.gym_name,
-              upiId: dbSettings.upi_id || '',
-              qrCodeUrl: dbSettings.qr_code_url || '',
-              availablePlans: dbSettings.available_plans || [],
-              batches: dbSettings.batches || [],
-              durations: dbSettings.durations || [],
-              enableSmartEntry: dbSettings.enable_smart_entry ?? false,
+              gymName: dbSettings.gymName,
+              upiId: dbSettings.upiId,
+              qrCodeUrl: dbSettings.qrCodeUrl,
+              availablePlans: dbSettings.availablePlans,
+              batches: dbSettings.batches,
+              durations: dbSettings.durations,
+              enableSmartEntry: dbSettings.enableSmartEntry,
             },
           });
         } else {
           dispatch({ type: 'SET_SETTINGS', payload: initialState.settings });
         }
       } catch (err) {
-        console.error('Error fetching settings from Supabase:', err);
+        console.error('Error fetching settings:', err);
         dispatch({ type: 'SET_SETTINGS', payload: initialState.settings });
       }
     }

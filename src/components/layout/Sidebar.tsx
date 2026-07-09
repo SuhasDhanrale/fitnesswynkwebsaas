@@ -41,7 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, gymName = 'Fi
 
       <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
         {/* Logo / Gym Name */}
-        <Link href="/" className={styles.logo} onClick={onClose}>
+        <Link href="/" prefetch={false} className={styles.logo} onClick={onClose}>
           <div className={styles.logoMark}>FW</div>
           <div>
             <div className={styles.gymName}>{gymName}</div>
@@ -57,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, gymName = 'Fi
               <Link
                 key={route}
                 href={route}
-                prefetch={true}
+                prefetch={false}
                 className={`${styles.navItem} ${isActive ? styles.active : ''}`}
                 onClick={onClose}
                 title={label}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend, PieChart, Pie, Cell
@@ -10,41 +11,37 @@ import { useFinanceSummary } from '@/hooks/useFinanceData';
 import { useAttendanceTrend } from '@/hooks/useAttendance';
 import { Skeleton } from '@/components/ui/Skeleton';
 import styles from './page.module.css';
+import { fetchMemberRetention, fetchPlanDistribution } from '@/lib/queries';
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+const CHART_INITIAL_DIMENSION = { width: 320, height: 300 };
+
+function ChartResponsiveContainer({ children }: { children: React.ReactNode }) {
+  return (
+    <ResponsiveContainer
+      width="100%"
+      height="100%"
+      minWidth={0}
+      minHeight={0}
+      initialDimension={CHART_INITIAL_DIMENSION}
+    >
+      {children}
+    </ResponsiveContainer>
+  );
+}
 
 // Retention hook inline (uses get_member_retention RPC)
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient';
-
 function useMemberRetention() {
   return useQuery({
     queryKey: ['member_retention'],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_member_retention');
-      if (error) throw error;
-      return data as { active: number; expired: number };
-    },
+    queryFn: fetchMemberRetention,
   });
 }
 
 function usePlanDistribution() {
   return useQuery({
     queryKey: ['plan_distribution'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('members')
-        .select('plan_name');
-      if (error) throw error;
-      const counts: Record<string, number> = {};
-      (data || []).forEach((m: Record<string, unknown>) => {
-        const plan = String(m.plan_name ?? '').trim();
-        if (plan) counts[plan] = (counts[plan] || 0) + 1;
-      });
-      return Object.entries(counts)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-    },
+    queryFn: fetchPlanDistribution,
   });
 }
 
@@ -120,7 +117,7 @@ export default function InsightsDashboard() {
             </div>
           </div>
           <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartResponsiveContainer>
               <AreaChart data={financesData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
@@ -137,13 +134,13 @@ export default function InsightsDashboard() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <Tooltip
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value) => [`₹${Number(value ?? 0).toLocaleString('en-IN')}`]}
+                  formatter={(value) => [`\u20b9${Number(value ?? 0).toLocaleString('en-IN')}`]}
                 />
                 <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
                 <Area type="monotone" dataKey="Income" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorIncome)" />
                 <Area type="monotone" dataKey="Expenses" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorExpenses)" />
               </AreaChart>
-            </ResponsiveContainer>
+            </ChartResponsiveContainer>
           </div>
         </div>
 
@@ -156,7 +153,7 @@ export default function InsightsDashboard() {
             </div>
           </div>
           <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartResponsiveContainer>
               <PieChart>
                 <Pie data={memberStatusData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                   <Cell key="cell-0" fill="#2563eb" />
@@ -165,7 +162,7 @@ export default function InsightsDashboard() {
                 <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Legend iconType="circle" verticalAlign="bottom" />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartResponsiveContainer>
           </div>
         </div>
       </div>
@@ -183,7 +180,7 @@ export default function InsightsDashboard() {
             {attendanceLoading ? (
               <Skeleton height="100%" borderRadius="8px" />
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <ChartResponsiveContainer>
                 <BarChart data={attendanceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
@@ -191,7 +188,7 @@ export default function InsightsDashboard() {
                   <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                   <Bar dataKey="Attendees" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartResponsiveContainer>
             )}
           </div>
         </div>
@@ -208,7 +205,7 @@ export default function InsightsDashboard() {
             {plansLoading ? (
               <Skeleton height="100%" borderRadius="8px" />
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <ChartResponsiveContainer>
                 <PieChart>
                   <Pie
                     data={plansData}
@@ -225,7 +222,7 @@ export default function InsightsDashboard() {
                   </Pie>
                   <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 </PieChart>
-              </ResponsiveContainer>
+              </ChartResponsiveContainer>
             )}
           </div>
         </div>

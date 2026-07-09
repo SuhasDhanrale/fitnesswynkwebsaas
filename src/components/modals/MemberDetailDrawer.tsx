@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { User, UserMinus } from 'lucide-react';
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient';
+import { deleteMember } from '@/lib/actions';
+import { fetchMemberAttendance, fetchMemberById, fetchMemberPayments } from '@/lib/queries';
 import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
@@ -17,7 +18,7 @@ import { ConfirmPinModal } from '@/components/modals/ConfirmPinModal';
 import { PaymentDetailModal } from '@/components/modals/PaymentDetailModal';
 import { isExpired, daysRemaining } from '@/lib/dateUtils';
 import { buildMemberWhatsApp, buildCallLink } from '@/lib/whatsapp';
-import { Member, Payment } from '@/types';
+import { Payment } from '@/types';
 import styles from './MemberDetailDrawer.module.css';
 
 interface MemberDetailDrawerProps {
@@ -36,75 +37,21 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
   // Fetch member by id
   const { data: member, isLoading: memberLoading } = useQuery({
     queryKey: ['member', memberId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('members')
-        .select('*')
-        .eq('id', memberId)
-        .single();
-      if (error) throw error;
-      const m = data;
-      return {
-        id: m.id,
-        name: m.name,
-        phoneNumber: m.phone_number,
-        planName: m.plan_name,
-        batch: m.batch,
-        startDate: Number(m.start_date),
-        expiryDate: Number(m.expiry_date),
-        durationLabel: m.duration_label,
-        notes: m.notes || '',
-        dueAmount: Number(m.due_amount || 0),
-      } as Member;
-    },
+    queryFn: () => fetchMemberById(memberId),
     enabled: !!memberId,
   });
 
   // Fetch member's payments
   const { data: memberPayments = [], isLoading: paymentsLoading } = useQuery({
     queryKey: ['payments', memberId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('member_id', memberId)
-        .order('timestamp', { ascending: false });
-      if (error) throw error;
-      return (data || []).map((p: Record<string, unknown>): Payment => ({
-        id: p.id as string,
-        memberId: p.member_id as string,
-        memberName: p.member_name as string,
-        amount: Number(p.amount),
-        paymentMode: p.payment_mode as 'Cash' | 'UPI',
-        planName: p.plan_name as string,
-        batch: p.batch as string,
-        startDate: Number(p.start_date),
-        endDate: Number(p.end_date),
-        notes: (p.notes as string) || '',
-        timestamp: Number(p.timestamp),
-        isEdited: (p.is_edited as boolean) ?? false,
-      }));
-    },
+    queryFn: () => fetchMemberPayments(memberId),
     enabled: !!memberId,
   });
 
   // Fetch member's attendance
   const { data: memberAttendance = [], isLoading: attendanceLoading } = useQuery({
     queryKey: ['attendance', memberId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('attendance')
-        .select('*')
-        .eq('member_id', memberId)
-        .order('date', { ascending: false });
-      if (error) throw error;
-      return (data || []).map((a: Record<string, unknown>) => ({
-        id: a.id as string,
-        memberId: a.member_id as string,
-        memberName: a.member_name as string,
-        date: Number(a.date),
-      }));
-    },
+    queryFn: () => fetchMemberAttendance(memberId),
     enabled: !!memberId,
   });
 
@@ -112,7 +59,11 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
 
   const handleDelete = async () => {
     if (!member) return;
-    await supabase.from('members').delete().eq('id', member.id);
+    const result = await deleteMember(member.id);
+    if (result.error) {
+      console.error('Failed to delete member:', result.error);
+      return;
+    }
     
     logAction('Deleted Member', { memberName: member.name });
     
@@ -245,9 +196,9 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
                   </div>
                 : memberAttendance.length === 0
                   ? <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>No attendance records found.</div>
-                  : memberAttendance.map((record: Record<string, unknown>) => (
-                    <div key={record.id as string} className={styles.historyRow}>
-                      <div className={styles.historyMain}>{format(record.date as number, 'dd MMM yyyy')}</div>
+                  : memberAttendance.map((record) => (
+                    <div key={record.id} className={styles.historyRow}>
+                      <div className={styles.historyMain}>{format(record.date, 'dd MMM yyyy')}</div>
                     </div>
                   ))
             )}

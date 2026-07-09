@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { sql } from '@/lib/db';
+import { assertAppSession } from '@/lib/session';
 
 export async function POST(req: NextRequest) {
   try {
-    // Rate limiting: max 5 attempts per IP per 15 minutes (shares window with verify-pin)
+    assertAppSession();
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || req.headers.get('x-real-ip')
       || 'unknown';
@@ -24,9 +30,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabaseServer = createClient(supabaseUrl, supabaseKey);
     const { currentPin, newPin } = await req.json();
 
     if (
@@ -36,33 +39,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Invalid PIN format' }, { status: 400 });
     }
 
-    // Fetch stored hash
-    const { data, error } = await supabaseServer
-      .from('app_pin')
-      .select('pin')
-      .eq('id', 1)
-      .single();
+    const rows = await sql`select pin from public.app_pin where id = 1 limit 1`;
+    const hash = rows[0]?.pin as string | undefined;
 
-    if (error || !data) {
+    if (!hash) {
       return NextResponse.json({ ok: false, error: 'PIN record not found' }, { status: 500 });
     }
 
-    // Verify current PIN
-    const isValid = await bcrypt.compare(currentPin, data.pin);
+    const isValid = await bcrypt.compare(currentPin, hash);
     if (!isValid) {
       return NextResponse.json({ ok: false, error: 'Current PIN is incorrect' });
     }
 
-    // Update with new hashed PIN
     const newHashedPin = await bcrypt.hash(newPin, 10);
-    const { error: updateError } = await supabaseServer
-      .from('app_pin')
-      .update({ pin: newHashedPin })
-      .eq('id', 1);
-
-    if (updateError) {
-      return NextResponse.json({ ok: false, error: 'Failed to update PIN' }, { status: 500 });
-    }
+    await sql`update public.app_pin set pin = ${newHashedPin} where id = 1`;
 
     return NextResponse.json({ ok: true });
   } catch {

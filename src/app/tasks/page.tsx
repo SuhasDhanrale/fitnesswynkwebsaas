@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Task } from '@/types';
 import { createTask, updateTask } from '@/lib/actions';
-import { supabase } from '@/lib/supabaseClient';
+import { fetchTasks } from '@/lib/queries';
 import { queryClient } from '@/lib/queryClient';
 import styles from './page.module.css';
 import { TaskModal } from '@/components/modals/TaskModal';
@@ -18,24 +18,6 @@ const COLUMNS: { id: Task['status']; label: string }[] = [
   { id: 'IN_PROGRESS', label: 'In Progress' },
   { id: 'DONE', label: 'Done' },
 ];
-
-async function fetchTasks(): Promise<Task[]> {
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('*')
-    .order('timestamp', { ascending: false });
-  if (error) throw error;
-  return (data || []).map((t: Record<string, unknown>): Task => ({
-    id: t.id as string,
-    title: t.title as string,
-    description: (t.description as string) || '',
-    assignee: (t.assignee as string) || 'Admin',
-    status: t.status as Task['status'],
-    priority: t.priority as Task['priority'],
-    dueDate: t.due_date ? Number(t.due_date) : null,
-    timestamp: Number(t.timestamp),
-  }));
-}
 
 function invalidateTasks() {
   queryClient.invalidateQueries({ queryKey: ['tasks'] });

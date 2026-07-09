@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    fetch('/api/logout', { method: 'POST' }).catch(() => {});
     sessionStorage.removeItem(SESSION_KEY);
     setCurrentUser(null);
   }, []);
