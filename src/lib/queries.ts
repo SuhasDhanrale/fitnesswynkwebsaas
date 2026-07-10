@@ -360,28 +360,53 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   requireSession();
 
   const rows = await sql`select public.get_dashboard_stats() as stats` as Row[];
-  return rows[0]?.stats as DashboardStats;
+  const stats = (rows[0]?.stats || {}) as Row;
+  return {
+    active_members: Number(stats.active_members || 0),
+    present_today: Number(stats.present_today || 0),
+    expiring_soon: Number(stats.expiring_soon || 0),
+    expired_members: Number(stats.expired_members || 0),
+    monthly_collection: Number(stats.monthly_collection || 0),
+  };
 }
 
 export async function fetchFinanceStats(): Promise<FinanceStats> {
   requireSession();
 
   const rows = await sql`select public.get_finance_stats() as stats` as Row[];
-  return rows[0]?.stats as FinanceStats;
+  const stats = (rows[0]?.stats || {}) as Row;
+  return {
+    this_month_income: Number(stats.this_month_income || 0),
+    last_month_income: Number(stats.last_month_income || 0),
+    all_time_income: Number(stats.all_time_income || 0),
+    this_month_expenses: Number(stats.this_month_expenses || 0),
+    last_month_expenses: Number(stats.last_month_expenses || 0),
+    all_time_expenses: Number(stats.all_time_expenses || 0),
+  };
 }
 
 export async function fetchFinanceSummary(daysBack: number): Promise<FinanceSummaryMonth[]> {
   requireSession();
 
   const rows = await sql`select public.get_finance_summary(${daysBack}) as summary` as Row[];
-  return (rows[0]?.summary as FinanceSummaryMonth[]) || [];
+  const summary = Array.isArray(rows[0]?.summary) ? rows[0].summary as Row[] : [];
+  return summary.map((month) => ({
+    month_label: month.month_label as string,
+    month_start: Number(month.month_start),
+    income: Number(month.income || 0),
+    expenses: Number(month.expenses || 0),
+  }));
 }
 
 export async function fetchMemberRetention(): Promise<{ active: number; expired: number }> {
   requireSession();
 
   const rows = await sql`select public.get_member_retention() as retention` as Row[];
-  return rows[0]?.retention as { active: number; expired: number };
+  const retention = (rows[0]?.retention || {}) as Row;
+  return {
+    active: Number(retention.active || 0),
+    expired: Number(retention.expired || 0),
+  };
 }
 
 export async function fetchPlanDistribution(): Promise<{ name: string; value: number }[]> {
