@@ -9,7 +9,8 @@ type ActionResult = { error?: string };
 
 function err(error: unknown): ActionResult {
   const message = error instanceof Error ? error.message : String(error);
-  return { error: message };
+  console.error('[server_action] Failed:', message);
+  return { error: 'Something went wrong. Please try again.' };
 }
 
 function ok(): ActionResult {

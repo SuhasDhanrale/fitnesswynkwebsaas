@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { checkRateLimit } from '@/lib/rateLimit';
+import { consumeRateLimitAttempt, getRateLimitStatus } from '@/lib/rateLimit';
 import { sql } from '@/lib/db';
 import { assertAppSession } from '@/lib/session';
+
+const PIN_MAX_FAILED_ATTEMPTS = 3;
+const PIN_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,11 +18,12 @@ export async function POST(req: NextRequest) {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || req.headers.get('x-real-ip')
       || 'unknown';
-    const rateLimit = checkRateLimit(`verify-pin:${ip}`);
+    const rateLimitKey = `verify-pin:${ip}`;
+    const rateLimit = getRateLimitStatus(rateLimitKey, PIN_MAX_FAILED_ATTEMPTS, PIN_WINDOW_MS);
 
     if (!rateLimit.allowed) {
       return NextResponse.json(
-        { ok: false, error: `Too many attempts. Try again in ${Math.ceil(rateLimit.resetInSeconds / 60)} minutes.` },
+        { ok: false, error: 'Too many failed attempts. Try again tomorrow.' },
         {
           status: 429,
           headers: {
@@ -48,7 +52,11 @@ export async function POST(req: NextRequest) {
 
     const isValid = await bcrypt.compare(currentPin, hash);
     if (!isValid) {
-      return NextResponse.json({ ok: false, error: 'Current PIN is incorrect' });
+      const failedLimit = consumeRateLimitAttempt(rateLimitKey, PIN_MAX_FAILED_ATTEMPTS, PIN_WINDOW_MS);
+      return NextResponse.json(
+        { ok: false, error: 'Current PIN is incorrect' },
+        { headers: { 'X-RateLimit-Remaining': String(failedLimit.remaining) } }
+      );
     }
 
     const newHashedPin = await bcrypt.hash(newPin, 10);

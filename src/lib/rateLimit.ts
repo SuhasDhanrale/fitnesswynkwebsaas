@@ -39,6 +39,77 @@ export interface RateLimitResult {
   resetInSeconds: number;
 }
 
+function getEntry(identifier: string): RateLimitEntry | undefined {
+  const now = Date.now();
+  const entry = store.get(identifier);
+
+  if (!entry || now > entry.resetTime) {
+    store.delete(identifier);
+    return undefined;
+  }
+
+  return entry;
+}
+
+export function getRateLimitStatus(
+  identifier: string,
+  maxAttempts: number = 5,
+  windowMs: number = 15 * 60 * 1000
+): RateLimitResult {
+  cleanup();
+
+  const entry = getEntry(identifier);
+  if (!entry) {
+    return {
+      allowed: true,
+      remaining: maxAttempts,
+      resetInSeconds: Math.ceil(windowMs / 1000),
+    };
+  }
+
+  const resetInSeconds = Math.ceil((entry.resetTime - Date.now()) / 1000);
+  const remaining = Math.max(0, maxAttempts - entry.count);
+
+  return {
+    allowed: entry.count < maxAttempts,
+    remaining,
+    resetInSeconds,
+  };
+}
+
+export function consumeRateLimitAttempt(
+  identifier: string,
+  maxAttempts: number = 5,
+  windowMs: number = 15 * 60 * 1000
+): RateLimitResult {
+  cleanup();
+
+  const now = Date.now();
+  const entry = getEntry(identifier);
+
+  if (!entry) {
+    store.set(identifier, { count: 1, resetTime: now + windowMs });
+    return {
+      allowed: maxAttempts > 0,
+      remaining: Math.max(0, maxAttempts - 1),
+      resetInSeconds: Math.ceil(windowMs / 1000),
+    };
+  }
+
+  if (entry.count < maxAttempts) {
+    entry.count += 1;
+  }
+
+  const resetInSeconds = Math.ceil((entry.resetTime - now) / 1000);
+  const remaining = Math.max(0, maxAttempts - entry.count);
+
+  return {
+    allowed: entry.count < maxAttempts,
+    remaining,
+    resetInSeconds,
+  };
+}
+
 /**
  * Check and consume a rate limit attempt for the given identifier.
  *

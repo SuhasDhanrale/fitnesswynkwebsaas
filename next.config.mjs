@@ -1,6 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async headers() {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://vercel.live",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' blob: data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://vercel.live wss://ws-us3.pusher.com",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+      "object-src 'none'",
+      "upgrade-insecure-requests",
+    ].join('; ');
+
     return [
       {
         source: '/(.*)',
@@ -18,6 +32,10 @@ const nextConfig = {
             value: 'SAMEORIGIN'
           },
           {
+            key: 'X-Permitted-Cross-Domain-Policies',
+            value: 'none'
+          },
+          {
             key: 'X-Content-Type-Options',
             value: 'nosniff'
           },
@@ -27,7 +45,19 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://vercel.live; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; font-src 'self' data:; connect-src 'self' https://vercel.live wss://ws-us3.pusher.com;"
+            value: csp
+          },
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin'
+          },
+          {
+            key: 'Cross-Origin-Resource-Policy',
+            value: 'same-origin'
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), geolocation=(), microphone=(self), payment=(), usb=()'
           }
         ]
       }

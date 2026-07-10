@@ -22,7 +22,7 @@ function base64Url(input: string | Buffer): string {
 }
 
 function getSessionSecret(): string {
-  const secret = process.env.APP_SESSION_SECRET || process.env.CRON_SECRET || process.env.DATABASE_URL;
+  const secret = process.env.APP_SESSION_SECRET;
   if (!secret) {
     throw new Error('APP_SESSION_SECRET is not set. Add a strong secret to your environment.');
   }

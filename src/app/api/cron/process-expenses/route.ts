@@ -72,7 +72,6 @@ export async function GET(request: Request) {
     });
   } catch (err: unknown) {
     console.error('CRON Error:', err);
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: 'Internal Server Error', details: msg }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

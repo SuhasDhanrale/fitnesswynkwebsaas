@@ -1,19 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { checkRateLimit } from '@/lib/rateLimit';
+import { consumeRateLimitAttempt, getRateLimitStatus } from '@/lib/rateLimit';
 import { sql } from '@/lib/db';
 import { setSessionCookie } from '@/lib/session';
+
+const PIN_MAX_FAILED_ATTEMPTS = 3;
+const PIN_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || req.headers.get('x-real-ip')
       || 'unknown';
-    const rateLimit = checkRateLimit(`verify-pin:${ip}`);
+    const rateLimitKey = `verify-pin:${ip}`;
+    const rateLimit = getRateLimitStatus(rateLimitKey, PIN_MAX_FAILED_ATTEMPTS, PIN_WINDOW_MS);
 
     if (!rateLimit.allowed) {
       return NextResponse.json(
-        { ok: false, error: `Too many attempts. Try again in ${Math.ceil(rateLimit.resetInSeconds / 60)} minutes.` },
+        { ok: false, error: 'Too many failed attempts. Try again tomorrow.' },
         {
           status: 429,
           headers: {
@@ -40,11 +44,16 @@ export async function POST(req: NextRequest) {
     const correct = await bcrypt.compare(pin, hash);
     if (correct) {
       setSessionCookie();
+      return NextResponse.json(
+        { ok: true },
+        { headers: { 'X-RateLimit-Remaining': String(rateLimit.remaining) } }
+      );
     }
 
+    const failedLimit = consumeRateLimitAttempt(rateLimitKey, PIN_MAX_FAILED_ATTEMPTS, PIN_WINDOW_MS);
     return NextResponse.json(
-      { ok: correct },
-      { headers: { 'X-RateLimit-Remaining': String(rateLimit.remaining) } }
+      { ok: false },
+      { headers: { 'X-RateLimit-Remaining': String(failedLimit.remaining) } }
     );
   } catch {
     return NextResponse.json({ ok: false, error: 'Server error' }, { status: 500 });

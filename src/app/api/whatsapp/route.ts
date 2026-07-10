@@ -237,7 +237,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     console.error('Fatal webhook error:', error);
-    const msg = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
