@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, CheckSquare, AlertTriangle,
   Wallet, PhoneCall, Megaphone, Settings, LineChart, ClipboardList
@@ -25,12 +24,18 @@ const navItems = [
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  activePath: string;
+  onNavigate: (route: string) => void;
   gymName?: string;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, gymName = 'FitnessWynk' }) => {
-  const pathname = usePathname();
-
+export const Sidebar: React.FC<SidebarProps> = ({
+  isOpen,
+  onClose,
+  activePath,
+  onNavigate,
+  gymName = 'FitnessWynk'
+}) => {
   return (
     <>
       {/* Mobile overlay */}
@@ -41,7 +46,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, gymName = 'Fi
 
       <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
         {/* Logo / Gym Name */}
-        <Link href="/" prefetch={false} className={styles.logo} onClick={onClose}>
+        <Link href="/" className={styles.logo} onClick={() => {
+          onNavigate('/');
+          onClose();
+        }}>
           <div className={styles.logoMark}>FW</div>
           <div>
             <div className={styles.gymName}>{gymName}</div>
@@ -52,14 +60,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, gymName = 'Fi
         {/* Navigation */}
         <nav className={styles.nav}>
           {navItems.map(({ label, icon: Icon, route }) => {
-            const isActive = pathname === route;
+            const isActive = activePath === route;
             return (
               <Link
                 key={route}
                 href={route}
-                prefetch={false}
                 className={`${styles.navItem} ${isActive ? styles.active : ''}`}
-                onClick={onClose}
+                onClick={() => {
+                  onNavigate(route);
+                  onClose();
+                }}
                 title={label}
               >
                 <Icon size={20} className={styles.navIcon} />
