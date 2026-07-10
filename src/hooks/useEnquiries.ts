@@ -4,6 +4,6 @@ import { fetchEnquiries } from '@/lib/queries';
 export function useEnquiries() {
   return useQuery({
     queryKey: ['enquiries'],
-    queryFn: fetchEnquiries,
+    queryFn: () => fetchEnquiries(),
   });
 }

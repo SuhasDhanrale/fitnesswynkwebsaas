@@ -34,14 +34,14 @@ function ChartResponsiveContainer({ children }: { children: React.ReactNode }) {
 function useMemberRetention() {
   return useQuery({
     queryKey: ['member_retention'],
-    queryFn: fetchMemberRetention,
+    queryFn: () => fetchMemberRetention(),
   });
 }
 
 function usePlanDistribution() {
   return useQuery({
     queryKey: ['plan_distribution'],
-    queryFn: fetchPlanDistribution,
+    queryFn: () => fetchPlanDistribution(),
   });
 }
 

@@ -26,7 +26,7 @@ function invalidateTasks() {
 export default function TasksPage() {
   const { data: tasks = [], isLoading, isError, error } = useQuery({
     queryKey: ['tasks'],
-    queryFn: fetchTasks,
+    queryFn: () => fetchTasks(),
   });
 
   // Debug: log errors to console so we can diagnose Vercel issues

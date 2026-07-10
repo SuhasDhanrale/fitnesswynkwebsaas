@@ -29,7 +29,7 @@ export function usePayments(page = 0, pageSize = 50, search = '') {
 export function useFinanceStats() {
   return useQuery({
     queryKey: ['finance_stats'],
-    queryFn: fetchFinanceStats,
+    queryFn: () => fetchFinanceStats(),
   });
 }
 
@@ -44,6 +44,6 @@ export function useExpenses(page = 0, pageSize = 50, search = '') {
 export function useScheduledExpenses() {
   return useQuery({
     queryKey: ['scheduled_expenses'],
-    queryFn: fetchScheduledExpenses,
+    queryFn: () => fetchScheduledExpenses(),
   });
 }

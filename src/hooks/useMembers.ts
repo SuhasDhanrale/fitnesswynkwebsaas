@@ -20,7 +20,7 @@ export function useMembers(opts: UseMembersOptions = {}) {
 export function useMembersList() {
   return useQuery({
     queryKey: ['members_list'],
-    queryFn: fetchMembersList,
+    queryFn: () => fetchMembersList(),
     staleTime: 5 * 60 * 1000,
   });
 }
