@@ -24,10 +24,15 @@ function invalidateTasks() {
 }
 
 export default function TasksPage() {
-  const { data: tasks = [], isLoading } = useQuery({
+  const { data: tasks = [], isLoading, isError, error } = useQuery({
     queryKey: ['tasks'],
     queryFn: fetchTasks,
   });
+
+  // Debug: log errors to console so we can diagnose Vercel issues
+  if (isError) {
+    console.error('[TasksPage] fetchTasks error:', error);
+  }
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
@@ -162,6 +167,12 @@ export default function TasksPage() {
           New Task
         </Button>
       </div>
+
+      {isError && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '12px 16px', margin: '0 0 16px', color: '#991b1b', fontSize: '14px' }}>
+          <strong>Error loading tasks:</strong> {error?.message || 'Unknown error'}
+        </div>
+      )}
 
       <div className={styles.board}>
         {COLUMNS.map(col => {
