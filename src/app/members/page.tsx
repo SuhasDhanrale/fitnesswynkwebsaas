@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
-import { UserX, Search, ArrowRight } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { UserX, Search, ArrowRight, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Button } from '@/components/ui/Button';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { Badge } from '@/components/ui/Badge';
-import { Input } from '@/components/ui/Input';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { MemberDetailDrawer } from '@/components/modals/MemberDetailDrawer';
@@ -40,6 +40,10 @@ export default function MembersDirectory() {
   const [planFilter, setPlanFilter] = useState('All');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
+
+  // Search + Add Member live in the TopBar on desktop, freeing a full page row.
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => setPortalTarget(document.getElementById('topbar-portal')), []);
 
   // Activity window — drives the "New Joined" / "Collected" tiles only.
   const [rangeFrom, setRangeFrom] = useState(() => iso(subDays(new Date(), 7)));
@@ -118,17 +122,48 @@ export default function MembersDirectory() {
 
   const filtersApplied = statusFilter !== 'All' || planFilter !== 'All';
 
+  const searchBox = (
+    <div className={styles.searchBox}>
+      <Search size={16} className={styles.searchBoxIcon} aria-hidden />
+      <input
+        type="text"
+        className={styles.searchInput}
+        placeholder="Search by name or phone"
+        value={searchQuery}
+        onChange={e => setSearchQuery(e.target.value)}
+        aria-label="Search members"
+      />
+      {searchQuery && (
+        <button
+          type="button"
+          className={styles.searchClear}
+          onClick={() => setSearchQuery('')}
+          aria-label="Clear search"
+        >
+          <X size={14} />
+        </button>
+      )}
+    </div>
+  );
+
+  // Desktop: rendered into the TopBar. Mobile: hidden, the in-page row takes over.
+  const topbarTools = (
+    <div className={styles.topbarTools}>
+      {searchBox}
+      <div className={styles.topbarAdd}>
+        <Button variant="primary" icon="UserPlus" onClick={() => setAddMemberOpen(true)}>Add Member</Button>
+      </div>
+    </div>
+  );
+
   if (isLoading && !data) {
     return (
       <div className={styles.container}>
-        <div className={styles.header}>
-          <Skeleton width="300px" height="40px" borderRadius="8px" />
-          <Skeleton width="120px" height="40px" borderRadius="8px" />
-        </div>
+        {portalTarget && createPortal(topbarTools, portalTarget)}
         <Skeleton height="56px" borderRadius="10px" />
         <Skeleton height="84px" borderRadius="10px" />
         <div className={styles.memberList}>
-          {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} height="70px" borderRadius="8px" style={{ marginBottom: '8px' }} />)}
+          {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} height="58px" borderRadius="8px" style={{ marginBottom: '8px' }} />)}
         </div>
       </div>
     );
@@ -137,16 +172,12 @@ export default function MembersDirectory() {
   return (
     <>
       <div className={styles.container}>
-        <div className={styles.header}>
-          <div className={styles.searchWrapper}>
-            <Input
-              label="Search Members..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <Search size={18} className={styles.searchIcon} />
-          </div>
-          <Button variant="primary" icon="UserPlus" onClick={() => setAddMemberOpen(true)}>Add Member</Button>
+        {portalTarget && createPortal(topbarTools, portalTarget)}
+
+        {/* Mobile-only: the TopBar has no room for these below 768px */}
+        <div className={styles.mobileHeader}>
+          {searchBox}
+          <Button variant="primary" icon="UserPlus" onClick={() => setAddMemberOpen(true)}>Add</Button>
         </div>
 
         {/* ── Compact stats strip ─────────────────────────────────────────── */}

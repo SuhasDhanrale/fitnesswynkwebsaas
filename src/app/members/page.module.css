@@ -4,26 +4,97 @@
   gap: var(--space-4);
 }
 
-.header {
+/* ── Toolbar search + Add ────────────────────────────────────────────────
+   These render into #topbar-portal on desktop, so the search must fit the
+   64px TopBar — hence a 36px pill rather than the 72px floating-label Input. */
+
+.topbarTools {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-
-.searchWrapper {
-  position: relative;
+  gap: var(--space-3);
   flex: 1;
-  max-width: 400px;
+  min-width: 0;
 }
 
-.searchIcon {
-  position: absolute;
-  right: var(--space-4);
-  top: 32px;
+.topbarTools .searchBox {
+  max-width: 340px;
+}
+
+.topbarAdd {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Below 768px the TopBar is too crowded — fall back to an in-page row. */
+.mobileHeader {
+  display: none;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+@media (max-width: 768px) {
+  .topbarTools {
+    display: none;
+  }
+  .mobileHeader {
+    display: flex;
+  }
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.searchBox:focus-within {
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+}
+
+.searchBoxIcon {
   color: var(--color-text-secondary);
-  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.searchClear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.searchClear:hover {
+  background: var(--color-text-secondary);
+  color: var(--color-surface);
 }
 
 /* ── Compact stats strip ─────────────────────────────────────────────────
@@ -249,7 +320,7 @@
 .memberList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .desktopHeader {
@@ -267,7 +338,7 @@
 .memberCard {
   background: var(--color-surface);
   border-radius: var(--radius-md);
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   box-shadow: var(--shadow-sm);
   display: grid;
   grid-template-columns: 2fr 2fr 1fr 1fr 1fr 100px;
