@@ -1,0 +1,41 @@
+name: Checks
+
+# Runs on every pull request and every push to main.
+# Purpose: catch type errors, lint errors and broken builds BEFORE they reach
+# the live site. Uses a throwaway DATABASE_URL — this workflow never connects
+# to the real database, so no secrets are needed here.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# If you push twice quickly, cancel the older run instead of queueing both.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
