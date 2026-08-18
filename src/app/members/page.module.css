@@ -1,7 +1,7 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-4);
 }
 
 .header {
@@ -26,81 +26,225 @@
   pointer-events: none;
 }
 
-.filters {
+/* ── Compact stats strip ─────────────────────────────────────────────────
+   Four low-profile tiles instead of the old tall per-plan cards. The two
+   left tiles double as Status filters; the two right tiles are scoped by
+   the date range that sits beside them. */
+
+.statsBar {
   display: flex;
-  gap: var(--space-3);
-  overflow-x: auto;
-  padding-bottom: var(--space-2);
-}
-
-.filters::-webkit-scrollbar {
-  height: 4px;
-}
-.filters::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: var(--radius-full);
-}
-
-.planStatsRow {
-  display: flex;
-  gap: var(--space-4);
-  overflow-x: auto;
-  padding-bottom: var(--space-2);
-}
-
-.planStatCard {
-  background: var(--color-dark);
-  color: #fff;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--space-4);
-  min-width: 140px;
+}
+
+.statTile {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  flex-shrink: 0;
+  justify-content: center;
+  gap: 2px;
+  min-width: 104px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-variant);
+  text-align: left;
+  font-family: var(--font-body);
 }
 
-.activeCard {
+.statTileButton {
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.statTileButton:hover {
+  border-color: var(--color-border);
+  background: var(--color-border);
+}
+
+.statTileOn {
+  border-color: var(--color-primary);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
 }
 
-.inactiveCard {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-}
-
-.planStatName {
-  font-size: 14px;
-  color: rgba(255,255,255,0.8);
-}
-
-/* Used on active/inactive cards — override default white text */
-.planStatNameDark {
-  font-size: 14px;
+.statLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
-.planStatCount {
-  font-size: 24px;
+.statValue {
   font-family: var(--font-heading);
+  font-size: 19px;
   font-weight: 700;
-  color: var(--color-primary);
+  line-height: 1.1;
+  color: var(--color-text-primary);
+  white-space: nowrap;
 }
 
-.planStatCountActive {
-  font-size: 24px;
-  font-family: var(--font-heading);
-  font-weight: 700;
+.valueGreen {
   color: #10B981;
 }
 
-.planStatCountInactive {
-  font-size: 24px;
-  font-family: var(--font-heading);
-  font-weight: 700;
+.valueRed {
   color: var(--color-error);
 }
+
+.statsDivider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--color-border);
+  margin: 0 var(--space-2);
+  flex-shrink: 0;
+}
+
+.rangeControl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-left: var(--space-2);
+}
+
+.rangeArrow {
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.datePicker {
+  font-family: var(--font-body);
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.datePicker:focus {
+  border-color: var(--color-primary);
+}
+
+.presets {
+  display: flex;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.preset {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.preset:hover {
+  background: var(--color-surface-variant);
+}
+
+.presetOn {
+  background: var(--color-primary);
+  border-color: transparent;
+  color: var(--color-on-primary);
+}
+
+/* ── Double-decked filter strip ─────────────────────────────────────────── */
+
+.filterStrip {
+  position: sticky;
+  top: 64px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.filterRow + .filterRow {
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--color-border);
+}
+
+.filterRowLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.chipRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 1px;
+}
+
+.chipRow::-webkit-scrollbar {
+  display: none;
+}
+
+.resultCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.clearFilters {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.clearFilters:hover {
+  text-decoration: underline;
+}
+
+/* ── Member list ─────────────────────────────────────────────────────────── */
 
 .memberList {
   display: flex;
@@ -185,6 +329,32 @@
   .badges {
     flex-direction: row;
   }
+  .statTile {
+    flex: 1;
+    min-width: 92px;
+  }
+  .statsDivider {
+    display: none;
+  }
+  .rangeControl {
+    width: 100%;
+    padding-left: 0;
+    padding-top: var(--space-2);
+    border-top: 1px dashed var(--color-border);
+  }
+  .datePicker {
+    flex: 1;
+    min-width: 0;
+  }
+  .filterStrip {
+    position: static;
+  }
+  .filterRowLabel {
+    display: none;
+  }
+  .resultCount {
+    display: none;
+  }
 }
 
 @media (min-width: 769px) {
@@ -201,60 +371,4 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-4);
-}
-
-.activitySection {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-shrink: 0;
-}
-
-.activityDatePicker {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 130px;
-}
-
-.datePicker {
-  font-family: var(--font-body);
-  font-size: 13px;
-  padding: 6px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-  cursor: pointer;
-  outline: none;
-  transition: border-color var(--transition-fast);
-}
-
-.datePicker:focus {
-  border-color: var(--color-primary);
-}
-
-.activityCards {
-  display: flex;
-  gap: var(--space-3);
-}
-
-.activityCard {
-  min-width: 110px !important;
-  background: var(--color-surface) !important;
-  border: 1px solid var(--color-border) !important;
-}
-
-@media (max-width: 768px) {
-  .activitySection {
-    flex-direction: column;
-    align-items: stretch;
-    width: 100%;
-  }
-  .activityCards {
-    width: 100%;
-  }
-  .activityCard {
-    flex: 1;
-  }
 }

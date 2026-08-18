@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { UserX, Search } from 'lucide-react';
+import React, { useState } from 'react';
+import { UserX, Search, ArrowRight } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Button } from '@/components/ui/Button';
 import { FilterChip } from '@/components/ui/FilterChip';
@@ -15,24 +14,26 @@ import { AddMemberModal } from '@/components/modals/AddMemberModal';
 import { useMembers } from '@/hooks/useMembers';
 import { isExpired, daysRemaining, getMemberDisplayStatus, statusLabel } from '@/lib/dateUtils';
 import { fetchMemberActivityStats } from '@/lib/queries';
-import { format, subDays, startOfDay } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, startOfMonth } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 
 import styles from './page.module.css';
 
+type StatusFilter = 'All' | 'Active' | 'Expired';
+
+const iso = (d: Date) => format(d, 'yyyy-MM-dd');
+
 export default function MembersDirectory() {
   const { state } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'OnHold' | 'Expired' | 'Cancelled' | 'Inactive'>('All');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('All');
   const [planFilter, setPlanFilter] = useState('All');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-  const [activityDate, setActivityDate] = useState(() => format(subDays(new Date(), 7), 'yyyy-MM-dd'));
 
-  useEffect(() => {
-    setPortalTarget(document.getElementById('topbar-portal'));
-  }, []);
+  // Activity window — drives the "New Joined" / "Collected" tiles only.
+  const [rangeFrom, setRangeFrom] = useState(() => iso(subDays(new Date(), 7)));
+  const [rangeTo, setRangeTo] = useState(() => iso(new Date()));
 
   const { data, isLoading } = useMembers({
     search: searchQuery,
@@ -59,7 +60,7 @@ export default function MembersDirectory() {
 
       const aDays = daysRemaining(a);
       const bDays = daysRemaining(b);
-      
+
       const aNeedsAttention = a.dueAmount > 0 || isExpired(a) || aDays <= 7;
       const bNeedsAttention = b.dueAmount > 0 || isExpired(b) || bDays <= 7;
 
@@ -67,28 +68,45 @@ export default function MembersDirectory() {
       if (bNeedsAttention && !aNeedsAttention) return 1;
 
       if (aDays !== bDays) return aDays - bDays;
-      
+
       return a.name.localeCompare(b.name);
     });
   }, [data, searchQuery]);
 
-  // Fetch all members (no filter, no pagination) for stats
+  // Fetch all members (no filter, no pagination) for the headline counts
   const { data: allData } = useMembers({ pageSize: 9999 });
 
-  const activitySinceMs = startOfDay(new Date(activityDate)).getTime();
+  const rangeFromMs = startOfDay(new Date(rangeFrom)).getTime();
+  const rangeToMs = endOfDay(new Date(rangeTo)).getTime();
+  const rangeIsValid =
+    Number.isFinite(rangeFromMs) && Number.isFinite(rangeToMs) && rangeFromMs <= rangeToMs;
+
   const { data: activityStats } = useQuery({
-    queryKey: ['activity_stats', activitySinceMs],
-    queryFn: () => fetchMemberActivityStats(activitySinceMs),
+    queryKey: ['activity_stats', rangeFromMs, rangeToMs],
+    queryFn: () => fetchMemberActivityStats(rangeFromMs, rangeToMs),
+    enabled: rangeIsValid,
     staleTime: 60 * 1000,
   });
 
+  const applyPreset = (days: number | 'mtd') => {
+    const today = new Date();
+    setRangeTo(iso(today));
+    setRangeFrom(iso(days === 'mtd' ? startOfMonth(today) : subDays(today, days)));
+  };
+
+  const activePreset = (() => {
+    if (rangeTo !== iso(new Date())) return null;
+    if (rangeFrom === iso(subDays(new Date(), 7))) return '7d';
+    if (rangeFrom === iso(subDays(new Date(), 30))) return '30d';
+    if (rangeFrom === iso(startOfMonth(new Date()))) return 'mtd';
+    return null;
+  })();
+
   const allMembers = allData?.data ?? [];
   const totalActive = allMembers.filter(m => getMemberDisplayStatus(m) === 'active').length;
-  const totalInactive = allMembers.filter(m => getMemberDisplayStatus(m) === 'expired').length;
-  const planStats = state.settings.availablePlans.map(plan => ({
-    name: plan,
-    count: allMembers.filter(m => m.planName === plan).length,
-  }));
+  const totalExpired = allMembers.filter(m => getMemberDisplayStatus(m) === 'expired').length;
+
+  const filtersApplied = statusFilter !== 'All' || planFilter !== 'All';
 
   if (isLoading && !data) {
     return (
@@ -97,9 +115,8 @@ export default function MembersDirectory() {
           <Skeleton width="300px" height="40px" borderRadius="8px" />
           <Skeleton width="120px" height="40px" borderRadius="8px" />
         </div>
-        <div className={styles.planStatsRow}>
-          {[1, 2, 3].map(i => <Skeleton key={i} width="120px" height="60px" borderRadius="8px" />)}
-        </div>
+        <Skeleton height="56px" borderRadius="10px" />
+        <Skeleton height="84px" borderRadius="10px" />
         <div className={styles.memberList}>
           {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} height="70px" borderRadius="8px" style={{ marginBottom: '8px' }} />)}
         </div>
@@ -122,66 +139,107 @@ export default function MembersDirectory() {
           <Button variant="primary" icon="UserPlus" onClick={() => setAddMemberOpen(true)}>Add Member</Button>
         </div>
 
-        {portalTarget && createPortal(
-          <>
-            <FilterChip label="All Status" selected={statusFilter === 'All'} onClick={() => setStatusFilter('All')} />
-            <FilterChip label="Active" selected={statusFilter === 'Active'} onClick={() => setStatusFilter('Active')} dotColor="#10B981" />
-            <FilterChip label="On Hold" selected={statusFilter === 'OnHold'} onClick={() => setStatusFilter('OnHold')} dotColor="#F59E0B" />
-            <FilterChip label="Expired" selected={statusFilter === 'Expired'} onClick={() => setStatusFilter('Expired')} dotColor="#EF4444" />
-            <FilterChip label="Cancelled" selected={statusFilter === 'Cancelled'} onClick={() => setStatusFilter('Cancelled')} dotColor="#374151" />
-            <FilterChip label="Inactive" selected={statusFilter === 'Inactive'} onClick={() => setStatusFilter('Inactive')} dotColor="#9CA3AF" />
-            <div style={{ width: '1px', background: 'var(--color-border)', margin: '0 8px', alignSelf: 'stretch', flexShrink: 0 }} />
-            <FilterChip label="All Plans" selected={planFilter === 'All'} onClick={() => setPlanFilter('All')} />
-            {state.settings.availablePlans.map(plan => (
-              <FilterChip key={plan} label={plan} selected={planFilter === plan} onClick={() => setPlanFilter(plan)} />
-            ))}
-          </>,
-          portalTarget
-        )}
+        {/* ── Compact stats strip ─────────────────────────────────────────── */}
+        <div className={styles.statsBar}>
+          <button
+            type="button"
+            className={`${styles.statTile} ${styles.statTileButton} ${statusFilter === 'Active' ? styles.statTileOn : ''}`}
+            onClick={() => setStatusFilter(statusFilter === 'Active' ? 'All' : 'Active')}
+            title="Show only active members"
+          >
+            <span className={styles.statLabel}>Active</span>
+            <span className={`${styles.statValue} ${styles.valueGreen}`}>{totalActive}</span>
+          </button>
 
-        <div className={styles.planStatsRow}>
-          <div className={`${styles.planStatCard} ${styles.activeCard}`}>
-            <span className={styles.planStatNameDark}>Total Active</span>
-            <span className={styles.planStatCountActive}>{totalActive}</span>
+          <button
+            type="button"
+            className={`${styles.statTile} ${styles.statTileButton} ${statusFilter === 'Expired' ? styles.statTileOn : ''}`}
+            onClick={() => setStatusFilter(statusFilter === 'Expired' ? 'All' : 'Expired')}
+            title="Show only expired members"
+          >
+            <span className={styles.statLabel}>Expired</span>
+            <span className={`${styles.statValue} ${styles.valueRed}`}>{totalExpired}</span>
+          </button>
+
+          <span className={styles.statsDivider} aria-hidden />
+
+          {/* Activity window — the date range below affects only these two tiles */}
+          <div className={styles.statTile}>
+            <span className={styles.statLabel}>New Joined</span>
+            <span className={styles.statValue}>{rangeIsValid ? (activityStats?.newMembers ?? '—') : '—'}</span>
           </div>
-          <div className={`${styles.planStatCard} ${styles.inactiveCard}`}>
-            <span className={styles.planStatNameDark}>Total Inactive</span>
-            <span className={styles.planStatCountInactive}>{totalInactive}</span>
+
+          <div className={styles.statTile}>
+            <span className={styles.statLabel}>Collected</span>
+            <span className={styles.statValue}>
+              {rangeIsValid && activityStats ? `₹${activityStats.paymentTotal.toLocaleString('en-IN')}` : '—'}
+            </span>
           </div>
-          {planStats.map(stat => (
-            <div key={stat.name} className={styles.planStatCard}>
-              <span className={styles.planStatName}>{stat.name}</span>
-              <span className={styles.planStatCount}>{stat.count}</span>
+
+          <div className={styles.rangeControl}>
+            <input
+              type="date"
+              value={rangeFrom}
+              max={rangeTo}
+              onChange={e => setRangeFrom(e.target.value)}
+              className={styles.datePicker}
+              aria-label="Activity range — from"
+            />
+            <ArrowRight size={14} className={styles.rangeArrow} />
+            <input
+              type="date"
+              value={rangeTo}
+              min={rangeFrom}
+              onChange={e => setRangeTo(e.target.value)}
+              className={styles.datePicker}
+              aria-label="Activity range — to"
+            />
+            <div className={styles.presets}>
+              <button type="button" className={`${styles.preset} ${activePreset === '7d' ? styles.presetOn : ''}`} onClick={() => applyPreset(7)}>7D</button>
+              <button type="button" className={`${styles.preset} ${activePreset === '30d' ? styles.presetOn : ''}`} onClick={() => applyPreset(30)}>30D</button>
+              <button type="button" className={`${styles.preset} ${activePreset === 'mtd' ? styles.presetOn : ''}`} onClick={() => applyPreset('mtd')}>This Month</button>
             </div>
-          ))}
-          <div style={{ width: '1px', background: 'var(--color-border)', margin: '0 4px', alignSelf: 'stretch', flexShrink: 0 }} />
-          <div className={styles.activitySection}>
-            <div className={styles.activityDatePicker}>
-              <label style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Since</label>
-              <input
-                type="date"
-                value={activityDate}
-                onChange={e => setActivityDate(e.target.value)}
-                className={styles.datePicker}
-              />
+          </div>
+        </div>
+
+        {/* ── Double-decked filter strip ──────────────────────────────────── */}
+        <div className={styles.filterStrip}>
+          <div className={styles.filterRow}>
+            <span className={styles.filterRowLabel}>Status</span>
+            <div className={styles.chipRow}>
+              <FilterChip label="All" selected={statusFilter === 'All'} onClick={() => setStatusFilter('All')} />
+              <FilterChip label="Active" selected={statusFilter === 'Active'} onClick={() => setStatusFilter('Active')} dotColor="#10B981" />
+              <FilterChip label="Expired" selected={statusFilter === 'Expired'} onClick={() => setStatusFilter('Expired')} dotColor="#EF4444" />
             </div>
-            <div className={styles.activityCards}>
-              <div className={`${styles.planStatCard} ${styles.activityCard}`}>
-                <span className={styles.planStatNameDark}>New Joined</span>
-                <span className={styles.planStatCountActive}>{activityStats?.newMembers ?? '—'}</span>
-              </div>
-              <div className={`${styles.planStatCard} ${styles.activityCard}`}>
-                <span className={styles.planStatNameDark}>Payments</span>
-                <span className={styles.planStatCount}>₹{activityStats?.paymentTotal?.toLocaleString('en-IN') ?? '—'}</span>
-              </div>
+            <span className={styles.resultCount}>
+              {members.length} {members.length === 1 ? 'member' : 'members'}
+            </span>
+          </div>
+
+          <div className={styles.filterRow}>
+            <span className={styles.filterRowLabel}>Plan</span>
+            <div className={styles.chipRow}>
+              <FilterChip label="All Plans" selected={planFilter === 'All'} onClick={() => setPlanFilter('All')} />
+              {state.settings.availablePlans.map(plan => (
+                <FilterChip key={plan} label={plan} selected={planFilter === plan} onClick={() => setPlanFilter(plan)} />
+              ))}
             </div>
+            {filtersApplied && (
+              <button
+                type="button"
+                className={styles.clearFilters}
+                onClick={() => { setStatusFilter('All'); setPlanFilter('All'); }}
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         </div>
 
         <div className={styles.memberList}>
           <div className={styles.desktopHeader}>
             <div>Name</div>
-            <div>Plan & Batch</div>
+            <div>Plan &amp; Batch</div>
             <div>Status</div>
             <div>Days Left</div>
             <div>Expiry Date</div>

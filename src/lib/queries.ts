@@ -467,19 +467,26 @@ export async function fetchTasks(): Promise<Task[]> {
   return rows.map(mapTask);
 }
 
-export async function fetchMemberActivityStats(sinceMs: number): Promise<{ newMembers: number; paymentCount: number; paymentTotal: number }> {
+/**
+ * Activity inside a window. `untilMs` is the inclusive end of the range
+ * (pass an end-of-day timestamp); omit it to count everything up to now.
+ */
+export async function fetchMemberActivityStats(sinceMs: number, untilMs?: number): Promise<{ newMembers: number; paymentCount: number; paymentTotal: number }> {
   requireSession();
+
+  const endMs = untilMs ?? Date.now();
 
   const memberRows = await sql`
     select count(*)::int as count
     from public.members
     where created_at >= to_timestamp(${sinceMs}::bigint / 1000.0)
+      and created_at <= to_timestamp(${endMs}::bigint / 1000.0)
   ` as Row[];
 
   const paymentRows = await sql`
     select count(*)::int as count, coalesce(sum(amount), 0)::int as total
     from public.payments
-    where timestamp >= ${sinceMs}
+    where timestamp >= ${sinceMs} and timestamp <= ${endMs}
   ` as Row[];
 
   return {
