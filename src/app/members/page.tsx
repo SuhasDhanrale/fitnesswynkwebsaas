@@ -19,7 +19,17 @@ import { useQuery } from '@tanstack/react-query';
 
 import styles from './page.module.css';
 
-type StatusFilter = 'All' | 'Active' | 'Expired';
+type StatusFilter = 'All' | 'Active' | 'OnHold' | 'Expired' | 'Cancelled' | 'Inactive';
+
+/** "All" is the live roster (active + expired); ended states have their own chip. */
+const STATUS_CHIPS: { value: StatusFilter; label: string; dotColor?: string }[] = [
+  { value: 'All', label: 'All' },
+  { value: 'Active', label: 'Active', dotColor: '#10B981' },
+  { value: 'Expired', label: 'Expired', dotColor: '#EF4444' },
+  { value: 'OnHold', label: 'On Hold', dotColor: '#F59E0B' },
+  { value: 'Cancelled', label: 'Cancelled', dotColor: '#374151' },
+  { value: 'Inactive', label: 'Inactive', dotColor: '#9CA3AF' },
+];
 
 const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 
@@ -207,9 +217,15 @@ export default function MembersDirectory() {
           <div className={styles.filterRow}>
             <span className={styles.filterRowLabel}>Status</span>
             <div className={styles.chipRow}>
-              <FilterChip label="All" selected={statusFilter === 'All'} onClick={() => setStatusFilter('All')} />
-              <FilterChip label="Active" selected={statusFilter === 'Active'} onClick={() => setStatusFilter('Active')} dotColor="#10B981" />
-              <FilterChip label="Expired" selected={statusFilter === 'Expired'} onClick={() => setStatusFilter('Expired')} dotColor="#EF4444" />
+              {STATUS_CHIPS.map(chip => (
+                <FilterChip
+                  key={chip.value}
+                  label={chip.label}
+                  selected={statusFilter === chip.value}
+                  onClick={() => setStatusFilter(chip.value)}
+                  dotColor={chip.dotColor}
+                />
+              ))}
             </div>
             <span className={styles.resultCount}>
               {members.length} {members.length === 1 ? 'member' : 'members'}

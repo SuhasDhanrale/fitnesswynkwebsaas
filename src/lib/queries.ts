@@ -161,6 +161,10 @@ export async function fetchMembers(opts: UseMembersOptions = {}): Promise<{ data
     where.push(`status = 'cancelled'`);
   } else if (status === 'Inactive') {
     where.push(`status = 'inactive'`);
+  } else {
+    // 'All' means the live roster: active + expired. Ended memberships
+    // (on hold / cancelled / inactive) surface only under their own filter.
+    where.push(`status = 'active'`);
   }
 
   if (plan !== 'All') {
