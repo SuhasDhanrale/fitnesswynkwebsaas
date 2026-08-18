@@ -20,22 +20,24 @@ export const mockSettings: GymSettings = {
   enableSmartEntry: false,
 };
 
+const defaultStatus = { status: 'active' as const, cancellationNote: null, cancellationDate: null };
+
 export const mockMembers: Member[] = [
   // ACTIVE — healthy
-  { id: ids.m1, name: 'Rahul Sharma', phoneNumber: '9876543210', planName: 'Monthly Cardio', batch: '6-7 AM', startDate: now - d(15), expiryDate: now + d(15), durationLabel: '1 Month', notes: 'Prefers morning sessions', dueAmount: 0 },
-  { id: ids.m2, name: 'Sneha Gupta', phoneNumber: '6543210987', planName: 'Yearly Pro', batch: '6-7 PM', startDate: now - d(2), expiryDate: now + d(363), durationLabel: '1 Year', notes: 'New joiner, referred by Rahul', dueAmount: 0 },
-  { id: ids.m3, name: 'Amit Kumar', phoneNumber: '7654321098', planName: 'CrossFit', batch: '7-8 AM', startDate: now - d(80), expiryDate: now + d(10), durationLabel: '3 Months', notes: '', dueAmount: 0 },
-  { id: ids.m4, name: 'Divya Nair', phoneNumber: '8123456789', planName: 'Weight Training', batch: '8-9 AM', startDate: now - d(10), expiryDate: now + d(20), durationLabel: '1 Month', notes: 'Physiotherapy background', dueAmount: 0 },
-  { id: ids.m5, name: 'Karan Mehta', phoneNumber: '9988776655', planName: 'Monthly Cardio', batch: '5-6 PM', startDate: now - d(5), expiryDate: now + d(25), durationLabel: '1 Month', notes: '', dueAmount: 0 },
+  { id: ids.m1, name: 'Rahul Sharma', phoneNumber: '9876543210', planName: 'Monthly Cardio', batch: '6-7 AM', startDate: now - d(15), expiryDate: now + d(15), durationLabel: '1 Month', notes: 'Prefers morning sessions', dueAmount: 0, ...defaultStatus },
+  { id: ids.m2, name: 'Sneha Gupta', phoneNumber: '6543210987', planName: 'Yearly Pro', batch: '6-7 PM', startDate: now - d(2), expiryDate: now + d(363), durationLabel: '1 Year', notes: 'New joiner, referred by Rahul', dueAmount: 0, ...defaultStatus },
+  { id: ids.m3, name: 'Amit Kumar', phoneNumber: '7654321098', planName: 'CrossFit', batch: '7-8 AM', startDate: now - d(80), expiryDate: now + d(10), durationLabel: '3 Months', notes: '', dueAmount: 0, ...defaultStatus },
+  { id: ids.m4, name: 'Divya Nair', phoneNumber: '8123456789', planName: 'Weight Training', batch: '8-9 AM', startDate: now - d(10), expiryDate: now + d(20), durationLabel: '1 Month', notes: 'Physiotherapy background', dueAmount: 0, ...defaultStatus },
+  { id: ids.m5, name: 'Karan Mehta', phoneNumber: '9988776655', planName: 'Monthly Cardio', batch: '5-6 PM', startDate: now - d(5), expiryDate: now + d(25), durationLabel: '1 Month', notes: '', dueAmount: 0, ...defaultStatus },
 
   // EXPIRING SOON (< 7 days)
-  { id: ids.m6, name: 'Vikram Singh', phoneNumber: '5432109876', planName: 'Monthly Cardio', batch: '7-8 PM', startDate: now - d(28), expiryDate: now + d(2), durationLabel: '1 Month', notes: 'Expiring in 2 days', dueAmount: 0 },
-  { id: ids.m7, name: 'Pooja Rao', phoneNumber: '7788990011', planName: 'Weight Training', batch: '6-7 AM', startDate: now - d(84), expiryDate: now + d(6), durationLabel: '3 Months', notes: '', dueAmount: 200 },
+  { id: ids.m6, name: 'Vikram Singh', phoneNumber: '5432109876', planName: 'Monthly Cardio', batch: '7-8 PM', startDate: now - d(28), expiryDate: now + d(2), durationLabel: '1 Month', notes: 'Expiring in 2 days', dueAmount: 0, ...defaultStatus },
+  { id: ids.m7, name: 'Pooja Rao', phoneNumber: '7788990011', planName: 'Weight Training', batch: '6-7 AM', startDate: now - d(84), expiryDate: now + d(6), durationLabel: '3 Months', notes: '', dueAmount: 200, ...defaultStatus },
 
   // EXPIRED
-  { id: ids.m8, name: 'Priya Patel', phoneNumber: '8765432109', planName: 'Weight Training', batch: '5-6 PM', startDate: now - d(40), expiryDate: now - d(10), durationLabel: '1 Month', notes: 'Wants to renew next week', dueAmount: 500 },
-  { id: ids.m9, name: 'Rohit Verma', phoneNumber: '9012345678', planName: 'CrossFit', batch: '6-7 PM', startDate: now - d(50), expiryDate: now - d(5), durationLabel: '45 Days', notes: 'Previously a 6-month member', dueAmount: 0 },
-  { id: ids.m10, name: 'Anjali Desai', phoneNumber: '9123456780', planName: 'Monthly Cardio', batch: '8-9 AM', startDate: now - d(35), expiryDate: now - d(5), durationLabel: '1 Month', notes: '', dueAmount: 1000 },
+  { id: ids.m8, name: 'Priya Patel', phoneNumber: '8765432109', planName: 'Weight Training', batch: '5-6 PM', startDate: now - d(40), expiryDate: now - d(10), durationLabel: '1 Month', notes: 'Wants to renew next week', dueAmount: 500, ...defaultStatus },
+  { id: ids.m9, name: 'Rohit Verma', phoneNumber: '9012345678', planName: 'CrossFit', batch: '6-7 PM', startDate: now - d(50), expiryDate: now - d(5), durationLabel: '45 Days', notes: 'Previously a 6-month member', dueAmount: 0, ...defaultStatus },
+  { id: ids.m10, name: 'Anjali Desai', phoneNumber: '9123456780', planName: 'Monthly Cardio', batch: '8-9 AM', startDate: now - d(35), expiryDate: now - d(5), durationLabel: '1 Month', notes: '', dueAmount: 1000, ...defaultStatus },
 ];
 
 // Payments spread across current and previous month

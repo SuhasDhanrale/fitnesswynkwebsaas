@@ -8,6 +8,7 @@ import { deleteMember } from '@/lib/actions';
 import { fetchMemberAttendance, fetchMemberById, fetchMemberPayments } from '@/lib/queries';
 import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Drawer } from '@/components/ui/Drawer';
@@ -16,7 +17,9 @@ import { EditMemberModal } from '@/components/modals/EditMemberModal';
 import { RenewMemberModal } from '@/components/modals/RenewMemberModal';
 import { ConfirmPinModal } from '@/components/modals/ConfirmPinModal';
 import { PaymentDetailModal } from '@/components/modals/PaymentDetailModal';
-import { isExpired, daysRemaining } from '@/lib/dateUtils';
+import { EndMembershipModal } from '@/components/modals/EndMembershipModal';
+import { daysRemaining, getMemberDisplayStatus } from '@/lib/dateUtils';
+import { reactivateMember } from '@/lib/actions';
 import { buildMemberWhatsApp, buildCallLink } from '@/lib/whatsapp';
 import { Payment } from '@/types';
 import styles from './MemberDetailDrawer.module.css';
@@ -28,11 +31,13 @@ interface MemberDetailDrawerProps {
 
 export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId, onClose }) => {
   const { logAction } = useAuth();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'payments' | 'attendance'>('payments');
   const [editOpen, setEditOpen] = useState(false);
   const [renewOpen, setRenewOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [endMembershipOpen, setEndMembershipOpen] = useState(false);
 
   // Fetch member by id
   const { data: member, isLoading: memberLoading } = useQuery({
@@ -101,8 +106,8 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
     );
   }
 
-  const expired = isExpired(member);
   const daysLeft = daysRemaining(member);
+  const displayStatus = getMemberDisplayStatus(member);
 
   return (
     <>
@@ -110,13 +115,17 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
         <div className={styles.container}>
           
           <div className={styles.profileCard}>
-            <div className={`${styles.avatar} ${expired ? styles.expired : ''}`}>
+            <div className={`${styles.avatar} ${(displayStatus === 'expired' || displayStatus === 'cancelled') ? styles.expired : displayStatus === 'on_hold' ? styles.onHold : displayStatus === 'inactive' ? styles.inactive : ''}`}>
               <User size={48} />
             </div>
             <h2 className={styles.name}>{member.name}</h2>
             <div className={styles.phone}>{member.phoneNumber}</div>
-            <div className={`${styles.statusText} ${expired ? styles.expired : styles.active}`}>
-              {expired ? 'EXPIRED' : `${daysLeft} Days Remaining`}
+            <div className={`${styles.statusText} ${styles[displayStatus] || ''}`}>
+              {displayStatus === 'active' && `${daysLeft} Days Remaining`}
+              {displayStatus === 'expired' && 'EXPIRED'}
+              {displayStatus === 'on_hold' && 'ON HOLD'}
+              {displayStatus === 'cancelled' && 'CANCELLED'}
+              {displayStatus === 'inactive' && 'INACTIVE'}
             </div>
             <div className={styles.actionsGrid}>
               <Button variant="ghost" icon="Phone" fullWidth onClick={() => window.open(buildCallLink(member.phoneNumber), '_blank')}>Call</Button>
@@ -142,7 +151,7 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
             ))}
             <div className={styles.dataRow}>
               <span className={styles.dataLabel}>Status</span>
-              <Badge status={expired ? 'expired' : 'active'} />
+              <Badge status={displayStatus} />
             </div>
             {member.dueAmount > 0 && (
               <div className={styles.dueAmountRow}>
@@ -204,7 +213,52 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
             )}
           </div>
 
-          <Button variant="danger" icon="Trash2" fullWidth onClick={() => setDeleteConfirmOpen(true)}>Delete Member</Button>
+          {/* Cancellation Info (shown when member is cancelled/inactive/on_hold) */}
+          {(displayStatus === 'cancelled' || displayStatus === 'inactive' || displayStatus === 'on_hold') && member.cancellationNote && (
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <h3 className={styles.cardTitle}>
+                  {displayStatus === 'on_hold' ? 'On Hold Info' : 'Cancellation Info'}
+                </h3>
+              </div>
+              {member.cancellationDate && (
+                <div className={styles.dataRow}>
+                  <span className={styles.dataLabel}>Date</span>
+                  <span className={styles.dataValue}>{format(member.cancellationDate, 'dd MMM yyyy')}</span>
+                </div>
+              )}
+              <div className={styles.notesSection}>
+                <div style={{ fontWeight: 600, marginBottom: '4px' }}>Reason:</div>
+                <div>{member.cancellationNote}</div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            {/* Show End Membership for active/expired members */}
+            {(displayStatus === 'active' || displayStatus === 'expired') && (
+              <Button variant="dark" icon="UserMinus" fullWidth onClick={() => setEndMembershipOpen(true)}>End Membership</Button>
+            )}
+            {/* Show Reactivate for cancelled/inactive/on_hold members */}
+            {(displayStatus === 'cancelled' || displayStatus === 'inactive' || displayStatus === 'on_hold') && (
+              <Button variant="primary" icon="UserPlus" fullWidth onClick={async () => {
+                const result = await reactivateMember(member.id);
+                if (result?.error) {
+                  showToast(`Failed to reactivate: ${result.error}`, 'error');
+                  return;
+                }
+                logAction('Reactivated Member', { memberName: member.name });
+                await Promise.all([
+                  queryClient.invalidateQueries({ queryKey: ['members'] }),
+                  queryClient.invalidateQueries({ queryKey: ['members_list'] }),
+                  queryClient.invalidateQueries({ queryKey: ['member', member.id] }),
+                  queryClient.invalidateQueries({ queryKey: ['dashboard_stats'] }),
+                ]);
+                showToast(`${member.name} is active again.`);
+              }}>Reactivate Member</Button>
+            )}
+            <Button variant="danger" icon="Trash2" fullWidth onClick={() => setDeleteConfirmOpen(true)}>Delete Member</Button>
+          </div>
 
         </div>
       </Drawer>
@@ -213,6 +267,7 @@ export const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({ memberId
       <RenewMemberModal isOpen={renewOpen} onClose={() => setRenewOpen(false)} member={member} />
       <ConfirmPinModal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} onConfirm={handleDelete} title="Delete Member" description={`Permanently delete ${member.name}? This cannot be undone.`} />
       <PaymentDetailModal isOpen={!!selectedPayment} onClose={() => setSelectedPayment(null)} payment={selectedPayment} />
+      <EndMembershipModal isOpen={endMembershipOpen} onClose={() => setEndMembershipOpen(false)} member={member} />
     </>
   );
 };

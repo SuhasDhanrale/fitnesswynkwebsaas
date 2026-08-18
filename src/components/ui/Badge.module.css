@@ -34,3 +34,18 @@
   background: var(--color-due-bg);
   color: var(--color-due-text);
 }
+
+.on_hold, .onhold {
+  background: var(--color-onhold-bg);
+  color: var(--color-onhold-text);
+}
+
+.cancelled {
+  background: var(--color-cancelled-bg);
+  color: var(--color-cancelled-text);
+}
+
+.inactive {
+  background: var(--color-inactive-bg);
+  color: var(--color-inactive-text);
+}

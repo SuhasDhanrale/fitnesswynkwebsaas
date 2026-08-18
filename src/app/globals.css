@@ -27,6 +27,16 @@
   --color-due-bg:         #FFF3E0;
   --color-due-text:       #E65100;
 
+  /* On Hold status */
+  --color-onhold-bg:      #FFF8E1;
+  --color-onhold-text:    #F57F17;
+  /* Cancelled status */
+  --color-cancelled-bg:   #F5F5F5;
+  --color-cancelled-text: #424242;
+  /* Inactive status */
+  --color-inactive-bg:    #FAFAFA;
+  --color-inactive-text:  #9E9E9E;
+
   /* Dark accent (for secondary buttons) */
   --color-dark:           #333333;
   --color-on-dark:        #FFDE21;  /* Yellow text on dark bg */

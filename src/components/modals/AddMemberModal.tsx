@@ -150,6 +150,9 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose 
         durationLabel: duration,
         notes: notes.trim(),
         dueAmount,
+        status: 'active',
+        cancellationNote: null,
+        cancellationDate: null,
         initialPayments,
       });
 

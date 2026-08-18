@@ -54,7 +54,7 @@ export interface MemberRenewalDetails {
 
 interface UseMembersOptions {
   search?: string;
-  status?: 'All' | 'Active' | 'Expired';
+  status?: 'All' | 'Active' | 'OnHold' | 'Expired' | 'Cancelled' | 'Inactive';
   plan?: string;
   page?: number;
   pageSize?: number;
@@ -76,6 +76,9 @@ function mapMember(m: Row): Member {
     durationLabel: m.duration_label as string,
     notes: (m.notes as string) || '',
     dueAmount: Number(m.due_amount || 0),
+    status: (m.status as Member['status']) || 'active',
+    cancellationNote: (m.cancellation_note as string) || null,
+    cancellationDate: m.cancellation_date ? Number(m.cancellation_date) : null,
   };
 }
 
@@ -148,10 +151,16 @@ export async function fetchMembers(opts: UseMembersOptions = {}): Promise<{ data
 
   if (status === 'Active') {
     params.push(Date.now());
-    where.push(`expiry_date > $${params.length}`);
+    where.push(`status = 'active' AND expiry_date > $${params.length}`);
   } else if (status === 'Expired') {
     params.push(Date.now());
-    where.push(`expiry_date <= $${params.length}`);
+    where.push(`status = 'active' AND expiry_date <= $${params.length}`);
+  } else if (status === 'OnHold') {
+    where.push(`status = 'on_hold'`);
+  } else if (status === 'Cancelled') {
+    where.push(`status = 'cancelled'`);
+  } else if (status === 'Inactive') {
+    where.push(`status = 'inactive'`);
   }
 
   if (plan !== 'All') {
@@ -456,4 +465,63 @@ export async function fetchTasks(): Promise<Task[]> {
 
   const rows = await sql`select * from public.tasks order by timestamp desc` as Row[];
   return rows.map(mapTask);
+}
+
+export async function fetchMemberActivityStats(sinceMs: number): Promise<{ newMembers: number; paymentCount: number; paymentTotal: number }> {
+  requireSession();
+
+  const memberRows = await sql`
+    select count(*)::int as count
+    from public.members
+    where created_at >= to_timestamp(${sinceMs}::bigint / 1000.0)
+  ` as Row[];
+
+  const paymentRows = await sql`
+    select count(*)::int as count, coalesce(sum(amount), 0)::int as total
+    from public.payments
+    where timestamp >= ${sinceMs}
+  ` as Row[];
+
+  return {
+    newMembers: Number(memberRows[0]?.count ?? 0),
+    paymentCount: Number(paymentRows[0]?.count ?? 0),
+    paymentTotal: Number(paymentRows[0]?.total ?? 0),
+  };
+}
+
+export async function fetchMemberReminders(memberId?: string): Promise<{ id: string; memberId: string; reminderDate: number; reminderNote: string; isCompleted: boolean }[]> {
+  requireSession();
+
+  const rows = memberId
+    ? await sql`
+        select * from public.member_reminders
+        where member_id = ${memberId}::uuid
+        order by reminder_date asc
+      ` as Row[]
+    : await sql`
+        select * from public.member_reminders
+        where is_completed = false
+        order by reminder_date asc
+      ` as Row[];
+
+  return rows.map((r) => ({
+    id: r.id as string,
+    memberId: r.member_id as string,
+    reminderDate: Number(r.reminder_date),
+    reminderNote: (r.reminder_note as string) || '',
+    isCompleted: (r.is_completed as boolean) ?? false,
+  }));
+}
+
+export async function fetchPendingRemindersCount(): Promise<number> {
+  requireSession();
+
+  const rows = await sql`
+    select count(*)::int as count
+    from public.member_reminders
+    where is_completed = false
+      and reminder_date <= ${Date.now()}
+  ` as Row[];
+
+  return Number(rows[0]?.count ?? 0);
 }

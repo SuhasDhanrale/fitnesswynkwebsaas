@@ -3,7 +3,7 @@ import { fetchMembers, fetchMembersList } from '@/lib/queries';
 
 interface UseMembersOptions {
   search?: string;
-  status?: 'All' | 'Active' | 'Expired';
+  status?: 'All' | 'Active' | 'OnHold' | 'Expired' | 'Cancelled' | 'Inactive';
   plan?: string;
   page?: number;
   pageSize?: number;

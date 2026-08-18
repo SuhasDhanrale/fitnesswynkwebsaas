@@ -147,7 +147,10 @@ export async function processPaymentAndRenewal(
           batch = ${data.batch},
           start_date = ${data.startDate},
           expiry_date = ${data.endDate},
-          due_amount = 0
+          due_amount = 0,
+          status = 'active',
+          cancellation_note = null,
+          cancellation_date = null
         where id = ${data.memberId}::uuid
       `,
     ]);
@@ -195,7 +198,10 @@ export async function logPaymentAndUpdateMember(data: {
           duration_label = ${data.durationLabel},
           start_date = ${data.startDate},
           expiry_date = ${data.endDate},
-          due_amount = ${data.dueAmount}
+          due_amount = ${data.dueAmount},
+          status = 'active',
+          cancellation_note = null,
+          cancellation_date = null
         where id = ${data.memberId}::uuid
       `,
     ]);
@@ -531,5 +537,81 @@ export async function logAuditAction(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('[audit_log] Failed to write:', message);
+  }
+}
+
+export async function endMembership(data: {
+  memberId: string;
+  status: 'cancelled' | 'inactive' | 'on_hold';
+  note: string;
+  reminderDate?: number;
+  reminderNote?: string;
+}): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
+
+  try {
+    const statements = [
+      sql`
+        update public.members
+        set
+          status = ${data.status},
+          cancellation_note = ${data.note},
+          cancellation_date = ${Date.now()}
+        where id = ${data.memberId}::uuid
+      `,
+    ];
+
+    if (data.reminderDate && data.reminderNote) {
+      statements.push(
+        sql`
+          insert into public.member_reminders (
+            member_id, reminder_date, reminder_note
+          ) values (
+            ${data.memberId}::uuid, ${data.reminderDate}, ${data.reminderNote}
+          )
+        `
+      );
+    }
+
+    await sql.transaction(statements);
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
+}
+
+export async function reactivateMember(memberId: string): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
+
+  try {
+    await sql`
+      update public.members
+      set
+        status = 'active',
+        cancellation_note = null,
+        cancellation_date = null
+      where id = ${memberId}::uuid
+    `;
+    return ok();
+  } catch (error) {
+    return err(error);
+  }
+}
+
+export async function completeReminder(reminderId: string): Promise<ActionResult> {
+  const auth = requireSession();
+  if (auth) return auth;
+
+  try {
+    await sql`
+      update public.member_reminders
+      set is_completed = true
+      where id = ${reminderId}::uuid
+    `;
+    return ok();
+  } catch (error) {
+    return err(error);
   }
 }

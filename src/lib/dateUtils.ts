@@ -28,4 +28,22 @@ export const calcEndDate = (startMs: number, duration?: string): number => {
 
 export const getTodayMidnight = () => startOfDay(new Date()).getTime();
 
+export type MemberDisplayStatus = 'active' | 'on_hold' | 'expired' | 'cancelled' | 'inactive';
+
+export const getMemberDisplayStatus = (member: Member): MemberDisplayStatus => {
+  if (member.status === 'on_hold') return 'on_hold';
+  if (member.status === 'cancelled') return 'cancelled';
+  if (member.status === 'inactive') return 'inactive';
+  // status === 'active' — check expiry date
+  return Date.now() > member.expiryDate ? 'expired' : 'active';
+};
+
+export const statusLabel: Record<MemberDisplayStatus, string> = {
+  active: 'Active',
+  on_hold: 'On Hold',
+  expired: 'Expired',
+  cancelled: 'Cancelled',
+  inactive: 'Inactive',
+};
+
 export { isSameMonth };

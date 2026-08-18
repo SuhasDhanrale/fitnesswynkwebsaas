@@ -10,6 +10,17 @@ export interface Member {
   durationLabel: string; // "1 Month", "3 Months"
   notes: string;
   dueAmount: number;     // 0 = fully paid
+  status: 'active' | 'on_hold' | 'cancelled' | 'inactive';
+  cancellationNote: string | null;
+  cancellationDate: number | null;
+}
+
+export interface MemberReminder {
+  id: string;
+  memberId: string;
+  reminderDate: number;
+  reminderNote: string;
+  isCompleted: boolean;
 }
 
 // Payment (from Payment.kt)

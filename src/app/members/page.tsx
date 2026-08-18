@@ -13,18 +13,22 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { MemberDetailDrawer } from '@/components/modals/MemberDetailDrawer';
 import { AddMemberModal } from '@/components/modals/AddMemberModal';
 import { useMembers } from '@/hooks/useMembers';
-import { isExpired, daysRemaining } from '@/lib/dateUtils';
+import { isExpired, daysRemaining, getMemberDisplayStatus, statusLabel } from '@/lib/dateUtils';
+import { fetchMemberActivityStats } from '@/lib/queries';
+import { format, subDays, startOfDay } from 'date-fns';
+import { useQuery } from '@tanstack/react-query';
 
 import styles from './page.module.css';
 
 export default function MembersDirectory() {
   const { state } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Expired'>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'OnHold' | 'Expired' | 'Cancelled' | 'Inactive'>('All');
   const [planFilter, setPlanFilter] = useState('All');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const [activityDate, setActivityDate] = useState(() => format(subDays(new Date(), 7), 'yyyy-MM-dd'));
 
   useEffect(() => {
     setPortalTarget(document.getElementById('topbar-portal'));
@@ -71,9 +75,16 @@ export default function MembersDirectory() {
   // Fetch all members (no filter, no pagination) for stats
   const { data: allData } = useMembers({ pageSize: 9999 });
 
+  const activitySinceMs = startOfDay(new Date(activityDate)).getTime();
+  const { data: activityStats } = useQuery({
+    queryKey: ['activity_stats', activitySinceMs],
+    queryFn: () => fetchMemberActivityStats(activitySinceMs),
+    staleTime: 60 * 1000,
+  });
+
   const allMembers = allData?.data ?? [];
-  const totalActive = allMembers.filter(m => !isExpired(m)).length;
-  const totalInactive = allMembers.filter(m => isExpired(m)).length;
+  const totalActive = allMembers.filter(m => getMemberDisplayStatus(m) === 'active').length;
+  const totalInactive = allMembers.filter(m => getMemberDisplayStatus(m) === 'expired').length;
   const planStats = state.settings.availablePlans.map(plan => ({
     name: plan,
     count: allMembers.filter(m => m.planName === plan).length,
@@ -114,8 +125,11 @@ export default function MembersDirectory() {
         {portalTarget && createPortal(
           <>
             <FilterChip label="All Status" selected={statusFilter === 'All'} onClick={() => setStatusFilter('All')} />
-            <FilterChip label="Active" selected={statusFilter === 'Active'} onClick={() => setStatusFilter('Active')} />
-            <FilterChip label="Expired" selected={statusFilter === 'Expired'} onClick={() => setStatusFilter('Expired')} />
+            <FilterChip label="Active" selected={statusFilter === 'Active'} onClick={() => setStatusFilter('Active')} dotColor="#10B981" />
+            <FilterChip label="On Hold" selected={statusFilter === 'OnHold'} onClick={() => setStatusFilter('OnHold')} dotColor="#F59E0B" />
+            <FilterChip label="Expired" selected={statusFilter === 'Expired'} onClick={() => setStatusFilter('Expired')} dotColor="#EF4444" />
+            <FilterChip label="Cancelled" selected={statusFilter === 'Cancelled'} onClick={() => setStatusFilter('Cancelled')} dotColor="#374151" />
+            <FilterChip label="Inactive" selected={statusFilter === 'Inactive'} onClick={() => setStatusFilter('Inactive')} dotColor="#9CA3AF" />
             <div style={{ width: '1px', background: 'var(--color-border)', margin: '0 8px', alignSelf: 'stretch', flexShrink: 0 }} />
             <FilterChip label="All Plans" selected={planFilter === 'All'} onClick={() => setPlanFilter('All')} />
             {state.settings.availablePlans.map(plan => (
@@ -140,6 +154,28 @@ export default function MembersDirectory() {
               <span className={styles.planStatCount}>{stat.count}</span>
             </div>
           ))}
+          <div style={{ width: '1px', background: 'var(--color-border)', margin: '0 4px', alignSelf: 'stretch', flexShrink: 0 }} />
+          <div className={styles.activitySection}>
+            <div className={styles.activityDatePicker}>
+              <label style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Since</label>
+              <input
+                type="date"
+                value={activityDate}
+                onChange={e => setActivityDate(e.target.value)}
+                className={styles.datePicker}
+              />
+            </div>
+            <div className={styles.activityCards}>
+              <div className={`${styles.planStatCard} ${styles.activityCard}`}>
+                <span className={styles.planStatNameDark}>New Joined</span>
+                <span className={styles.planStatCountActive}>{activityStats?.newMembers ?? '—'}</span>
+              </div>
+              <div className={`${styles.planStatCard} ${styles.activityCard}`}>
+                <span className={styles.planStatNameDark}>Payments</span>
+                <span className={styles.planStatCount}>₹{activityStats?.paymentTotal?.toLocaleString('en-IN') ?? '—'}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className={styles.memberList}>
@@ -148,6 +184,7 @@ export default function MembersDirectory() {
             <div>Plan & Batch</div>
             <div>Status</div>
             <div>Days Left</div>
+            <div>Expiry Date</div>
             <div></div>
           </div>
 
@@ -160,8 +197,8 @@ export default function MembersDirectory() {
             />
           ) : (
             members.map(member => {
-              const expired = isExpired(member);
               const daysLeft = daysRemaining(member);
+              const displayStatus = getMemberDisplayStatus(member);
 
               return (
                 <div key={member.id} className={styles.memberCard} onClick={() => setSelectedMemberId(member.id)}>
@@ -172,7 +209,7 @@ export default function MembersDirectory() {
                       <div className={styles.memberPhone}>{member.phoneNumber}</div>
                     </div>
                     <div className={styles.badges}>
-                      <Badge status={expired ? 'expired' : 'active'} />
+                      <Badge status={displayStatus} />
                       {member.dueAmount > 0 && <Badge status="due" value={member.dueAmount} />}
                     </div>
                   </div>
@@ -191,20 +228,29 @@ export default function MembersDirectory() {
 
                   {/* Desktop View Column 3 (Badges) */}
                   <div className={`${styles.badges} ${styles.desktopOnly}`}>
-                    <Badge status={expired ? 'expired' : 'active'} />
+                    <Badge status={displayStatus} />
                     {member.dueAmount > 0 && <Badge status="due" value={member.dueAmount} />}
                   </div>
 
                   {/* Desktop View Column 4 */}
                   <div className={styles.desktopOnly}>
-                    {expired ? (
+                    {displayStatus === 'active' ? (
+                      <span style={{ fontWeight: 600 }}>{daysLeft} days</span>
+                    ) : displayStatus === 'expired' ? (
                       <span style={{ color: 'var(--color-error)', fontWeight: 600 }}>Expired</span>
                     ) : (
-                      <span style={{ fontWeight: 600 }}>{daysLeft} days</span>
+                      <span style={{ color: 'var(--color-text-secondary)', fontWeight: 600 }}>{statusLabel[displayStatus] || '—'}</span>
                     )}
                   </div>
 
-                  {/* Desktop View Column 5 */}
+                  {/* Desktop View Column 5 — Expiry Date */}
+                  <div className={styles.desktopOnly}>
+                    <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                      {format(member.expiryDate, 'dd MMM yyyy')}
+                    </span>
+                  </div>
+
+                  {/* Desktop View Column 6 */}
                   <div className={styles.desktopOnly}>
                     <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedMemberId(member.id); }}>View</Button>
                   </div>

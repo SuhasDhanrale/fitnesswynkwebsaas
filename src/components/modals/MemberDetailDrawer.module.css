@@ -59,6 +59,28 @@
   color: var(--color-active-text);
 }
 
+.statusText.on_hold {
+  color: var(--color-onhold-text);
+}
+
+.statusText.cancelled {
+  color: var(--color-cancelled-text);
+}
+
+.statusText.inactive {
+  color: var(--color-inactive-text);
+}
+
+.avatar.onHold {
+  background: var(--color-onhold-bg);
+  color: var(--color-onhold-text);
+}
+
+.avatar.inactive {
+  background: var(--color-inactive-bg);
+  color: var(--color-inactive-text);
+}
+
 .actionsGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
